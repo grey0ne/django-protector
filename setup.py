@@ -13,10 +13,14 @@ setup(
     include_package_data=True,
     license='MIT License',
     description='Django application for managing object level permissions and generic groups',
-    url='https://github.com/grey0ne/django-protector'
+    url='https://github.com/grey0ne/django-protector',
     long_description=README,
     author='Sergey Lihobabin',
     author_email='greyone@greyone.ru',
+    install_requires = [
+        'django-mptt>=0.6',
+        'Django==1.7'
+    ],
     classifiers=[
         'Environment :: Web Environment',
         'Framework :: Django',
