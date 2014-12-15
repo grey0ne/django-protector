@@ -31,7 +31,7 @@ Quick start
 
     PROTECTOR_GENERIC_GROUP = 'users.group'
 
-5. Run `python manage.py migrate` to create the protector models and copy existing .
+5. Run `python manage.py migrate` to create the protector models and copy existing user permissions
 
 Now you can check permissions on objects like this::
     
