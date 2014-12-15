@@ -8,7 +8,7 @@ os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(
     name='django-protector',
-    version='0.1.1',
+    version='0.1.2',
     packages=['protector'],
     include_package_data=True,
     license='MIT License',
@@ -19,7 +19,7 @@ setup(
     author_email='greyone@greyone.ru',
     install_requires = [
         'django-mptt>=0.6',
-        'Django==1.7'
+        'Django>=1.7'
     ],
     classifiers=[
         'Environment :: Web Environment',
