@@ -58,6 +58,7 @@ Additional steps
     some_qset.filter_by_permission(user, 'some_app.some_perm')
 
 Now you can manipulate permissions and groups::
+
     user.permissions.all()
     user.permissions.add(permission)
     user.groups.all()
