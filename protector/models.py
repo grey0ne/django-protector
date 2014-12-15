@@ -477,9 +477,7 @@ class Restricted(models.Model):
         return cls._view_perm
 
     def get_parent_object(self):
-        raise NotImplementedError(
-            'This function must be implemented to support restriction hierarchy'
-        )
+        return None
 
     def get_restriction_obj(self):
         return Restriction.objects.get_or_create(

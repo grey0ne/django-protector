@@ -9,11 +9,85 @@ Also it allow every object in your project to behave as a user group. i.e. addin
 Quick start
 -----------
 
-1. Add "protector" to your INSTALLED_APPS setting::
+1. Install from pip (it will also install required django-mptt)::
+
+    pip install django-protector
+
+2. Add "protector" to your INSTALLED_APPS setting::
 
     INSTALLED_APPS = (
         ...
         'protector',
     )
 
-3. Run `python manage.py migrate` to create the protector models.
+3. Add protector authentication backend. Also you should remove default auth backend::
+
+    AUTHENTICATION_BACKENDS = (
+        ...
+        'protector.backends.GenericPermissionBackend'
+    )
+
+4. Make some model your default group::
+
+    PROTECTOR_GENERIC_GROUP = 'users.group'
+
+5. Run `python manage.py migrate` to create the protector models and copy existing .
+
+Now you can check permissions on objects like this::
+    
+    user.has_perm('some_app.some_perm', user)
+
+Or filter any queryset by permission::
+
+    from protector.models import filter_queryset_by_permission
+    filtered_qset = filter_queryset_by_permission(some_qset, user, 'some_app.some_perm')
+
+Additional steps
+----------------
+
+1. Add GenericPermsMixin to your User model to conviniently add permissions and groups::
+
+    class User(UserGenericPermsMixin, AbstractBaseUser)
+
+2. Create some group models. Every model in your project could now behave like a group. You could inherit your models from abstract group to have convinient fields for users and permissions::
+
+    class Group(AbstractGenericGroup):
+
+4. Inherit your Querysets from PermissionQuerySet to conviniently filter by permission::
+    
+    some_qset.filter_by_permission(user, 'some_app.some_perm')
+
+Now you can manipulate permissions and groups::
+    user.permissions.all()
+    user.permissions.add(permission)
+    user.groups.all()
+    group.permissions.add(permission)
+
+
+Restricting access to objects
+-----------------------------
+
+This is somewhat different from just filtering queryset by permission
+
+1. Inherit your model from Restricted::
+
+    class Comment(Restricted)
+
+2. Inherit model manager from RestrictedManager::
+
+    class CommentManager(RestrictedManager):
+
+3. Restricted contains some additional fields so you need to run makemigration for your app
+
+4. Now you can restrict instances of your model::
+    
+    comment.restrict()
+
+To enable user view one or all restricted objects::
+    
+    user.permissions.add(Restricted.get_view_permission(), comment)
+    user.permissions.add(Restricted.get_view_permission())
+
+To filter model objects visible by user::
+    
+    Comment.objects.visible(user)
