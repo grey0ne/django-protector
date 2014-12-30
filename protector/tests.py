@@ -9,7 +9,6 @@ from protector.helpers import get_all_permission_owners
 
 TestUser = get_user_model()
 
-
 @override_settings(
     AUTHENTICATION_BACKENDS=('protector.backends.GenericPermissionBackend',),
     DISABLE_GENERIC_PERMISSION_CACHE=True
@@ -131,6 +130,7 @@ class GenericObjectRestrictionTest(TestCase):
             self.group.users.count(), 1
         )
         self.group.users.add(self.user2, roles=DEFAULT+ROLE2)
+        
         self.assertEquals(
             self.group.users.by_role(roles=DEFAULT).count(), 2
         )
@@ -174,7 +174,7 @@ class GenericObjectRestrictionTest(TestCase):
             content_type=ContentType.objects.get_for_model(self.TestGroup),
             roles=ROLE2, permission=self.TestGroup.get_view_permission()
         )
-        self.group.users.add(self.user, roles=DEFAULT)
+        self.group.users.add(self.user)
         self.group2.users.add(self.user2, roles=ROLE2)
         self.assertEquals(
             self.TestGroup.objects.visible(self.user2).count(), 2

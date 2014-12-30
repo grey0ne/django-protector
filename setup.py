@@ -17,7 +17,8 @@ setup(
     long_description=README,
     author='Sergey Lihobabin',
     author_email='greyone@greyone.ru',
-    install_requires = [
+    test_suite='runtests.runtests',
+    install_requires=[
         'django-mptt>=0.6',
         'Django>=1.7'
     ],

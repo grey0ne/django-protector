@@ -303,7 +303,11 @@ class AbstractGenericGroup(GenericPermsMixin):
         Base model for all Groups
         Inherit your model from that to enable generic group features
     """
-    DEFAULT_ROLE = None
+    PARTICIPANT = 1
+    ROLES = (
+        (PARTICIPANT, u'Участник'),
+    )
+    DEFAULT_ROLE = PARTICIPANT
 
     users_relations = generic.GenericRelation(
         GenericUserToGroup, content_type_field='group_content_type',
@@ -565,7 +569,7 @@ class Restricted(models.Model):
 
 def get_default_group_ctype():
     return ContentType.objects.get_by_natural_key(
-        *settings.PROTECTOR_GENERIC_GROUP.split('.')
+        *settings.PROTECTOR_GENERIC_GROUP.lower().split('.')
     )
 
 
@@ -647,7 +651,7 @@ class GroupUserManager(models.Manager):
             links = links.filter(roles__isnull=True)
         else:
             links = links.extra(
-                where=["roles & '{roles!s}'".format(
+                where=["roles & {roles!s}".format(
                     roles=roles,
                 )]
             )
