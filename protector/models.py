@@ -305,7 +305,7 @@ class AbstractGenericGroup(GenericPermsMixin):
     """
     PARTICIPANT = 1
     ROLES = (
-        (PARTICIPANT, u'Участник'),
+        (PARTICIPANT, _('Participant')),
     )
     DEFAULT_ROLE = PARTICIPANT
 
