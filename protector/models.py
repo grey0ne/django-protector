@@ -431,14 +431,6 @@ class RestrictedQuerySet(PermissionQuerySet):
         condition = condition.format(table_name=self.model._meta.db_table)
         return condition
 
-    def get_obj_id_field(self):
-        return "{table_name!s}.restriction_id".format(table_name=self.model._meta.db_table)
-
-    def get_ctype_id_field(self):
-        return "{table_name!s}.restriction_content_type_id".format(
-            table_name=self.model._meta.db_table
-        )
-
 
 RestrictedManager = models.Manager.from_queryset(RestrictedQuerySet)
 
