@@ -336,11 +336,37 @@ def filter_queryset_by_permission(qset, user, permission):
         return qset.all()
     if user.id is None or perm_id is None:
         return qset.none()
-    condition = _get_filter_by_perm_condition(qset, user.id, perm_id)
+    condition = _get_permission_filter(qset, user.id, perm_id)
     return qset.extra(where=[condition])
 
 
-def _get_filter_by_perm_condition(qset, user_id, perm_id):
+def _get_restriction_filter(qset, user_id, perm_id):
+    if hasattr(qset, 'get_restriction_id_field'):
+        obj_id_field = qset.get_restriction_id_field()
+    else:
+        obj_id_field = "{table_name!s}.restriction_id".format(table_name=qset.model._meta.db_table)
+    if hasattr(qset, 'get_restriction_ctype_id_field'):
+        ctype_id_field = qset.get_restriction_ctype_id_field()
+    else:
+        ctype_id_field = "{table_name!s}.restriction_content_type_id".format(
+            table_name=qset.model._meta.db_table
+        )
+    return _get_filter_by_perm_condition(qset, user_id, perm_id, obj_id_field, ctype_id_field)
+
+
+def _get_permission_filter(qset, user_id, perm_id):
+    if hasattr(qset, 'get_obj_id_field'):
+        obj_id_field = qset.get_obj_id_field()
+    else:
+        obj_id_field = "{table_name!s}.id".format(table_name=qset.model._meta.db_table)
+    if hasattr(qset, 'get_ctype_id_field'):
+        ctype_id_field = qset.get_ctype_id_field()
+    else:
+        ctype_id_field = str(ContentType.objects.get_for_model(qset.model).id)
+    return _get_filter_by_perm_condition(qset, user_id, perm_id, obj_id_field, ctype_id_field)
+
+
+def _get_filter_by_perm_condition(qset, user_id, perm_id, obj_id_field, ctype_id_field):
     # here we brake some rules about sql sanitizing
     # it is a shame, but only ids is used so we can live with it
     condition = """
@@ -362,20 +388,11 @@ def _get_filter_by_perm_condition(qset, user_id, perm_id):
         )
     )
     """
-    if hasattr(qset, 'get_obj_id_field'):
-        obj_id_field = qset.get_obj_id_field()
-    else:
-        obj_id_field = "{table_name!s}.id".format(table_name=qset.model._meta.db_table)
-    if hasattr(qset, 'get_ctype_id_field'):
-        get_ctype_id_field = qset.get_ctype_id_field()
-    else:
-        get_ctype_id_field = "{table_name!s}.id".format(table_name=qset.model._meta.db_table)
-
     condition = condition.format(
         user_id=user_id, perm_id=perm_id,
         null_owner_id=NULL_OWNER_TO_PERMISSION_OBJECT_ID,
         obj_id_field=obj_id_field,
-        ctype_id_field=get_ctype_id_field
+        ctype_id_field=ctype_id_field
     )
     return condition
 
@@ -410,7 +427,7 @@ class RestrictedQuerySet(PermissionQuerySet):
         condition = """
             {table_name!s}.restriction_id IS NULL OR
         """
-        condition += _get_filter_by_perm_condition(self, user_id, perm_id)
+        condition += _get_restriction_filter(self, user_id, perm_id)
         condition = condition.format(table_name=self.model._meta.db_table)
         return condition
 
@@ -579,15 +596,13 @@ class UserGroupManager(models.Manager):
         super(UserGroupManager, self).__init__()
         self.instance = instance
 
-    def add(self, *groups, **kwargs):
-        responsible = kwargs.get('responsible', None)
-        GenericUserToGroup.objects.bulk_create(
-            [GenericUserToGroup(
-                user=self.instance, group=group,
-                roles=kwargs.get('roles', group.DEFAULT_ROLE),
-                responsible=responsible
-            ) for group in groups]
-        )
+    def add(self, group, responsible=None, roles=None):
+        roles = roles or group.DEFAULT_ROLE
+        GenericUserToGroup(
+            user=self.instance, group=group,
+            roles=roles,
+            responsible=responsible
+        ).save()
 
     def remove(self, group):
         GenericUserToGroup.objects.filter(
@@ -671,21 +686,17 @@ class OwnerPermissionManager(models.Manager):
             generic_restriction_relations__owner_content_type__in=[ctype]
         ).distinct()
 
-    def add(self, *perms, **kwargs):
-        objects = kwargs.pop('objects', None)
-        if not hasattr(objects, '__iter__'):
-            objects = [objects]
-        for obj in objects:
-            if obj is not None:
-                kwargs['object_id'] = obj.pk
-                kwargs['content_type'] = ContentType.objects.get_for_model(obj)
-            for perm in perms:
-                kwargs.update({
-                    'owner_object_id': self.instance.id,
-                    'owner_content_type': ContentType.objects.get_for_model(self.instance),
-                    'permission': perm
-                })
-                OwnerToPermission.objects.get_or_create(**kwargs)
+    def add(self, perm, obj=None, responsible=None):
+        kwargs = {
+            'owner_object_id': self.instance.id,
+            'owner_content_type': ContentType.objects.get_for_model(self.instance),
+            'permission': perm,
+            'responsible': responsible
+        }
+        if obj is not None:
+            kwargs['object_id'] = obj.pk
+            kwargs['content_type'] = ContentType.objects.get_for_model(obj)
+        OwnerToPermission.objects.get_or_create(**kwargs)
 
     def remove(self, perm, obj=None):
         qset = OwnerToPermission.objects.filter(

@@ -9,6 +9,7 @@ from protector.helpers import get_all_permission_owners
 
 TestUser = get_user_model()
 
+
 @override_settings(
     AUTHENTICATION_BACKENDS=('protector.backends.GenericPermissionBackend',),
     DISABLE_GENERIC_PERMISSION_CACHE=True
@@ -42,7 +43,7 @@ class GenericObjectRestrictionTest(TestCase):
             self.user.has_perm(self.permission_key, self.user2)
         )
         self.user.permissions.add(
-            self.permission, objects=self.user2
+            self.permission, self.user2
         )
         self.assertTrue(
             self.user.has_perm(self.permission_key, self.user2)
@@ -61,7 +62,7 @@ class GenericObjectRestrictionTest(TestCase):
         self.assertFalse(
             self.user2.has_perm(self.permission_key, self.user)
         )
-        self.group.permissions.add(self.permission, objects=self.user)
+        self.group.permissions.add(self.permission, self.user)
         self.group.users.add(self.user2)
         self.assertTrue(
             self.user2.has_perm(self.permission_key, self.user)
@@ -112,7 +113,7 @@ class GenericObjectRestrictionTest(TestCase):
             self.TestGroup.objects.visible(self.user2).count(), 1
         )
         self.user2.permissions.add(
-            self.TestGroup.get_view_permission(), objects=self.group2
+            self.TestGroup.get_view_permission(), self.group2
         )
         qset = self.TestGroup.objects.visible(self.user2)
         self.assertEquals(qset.count(), 2)
@@ -130,7 +131,7 @@ class GenericObjectRestrictionTest(TestCase):
             self.group.users.count(), 1
         )
         self.group.users.add(self.user2, roles=DEFAULT+ROLE2)
-        
+
         self.assertEquals(
             self.group.users.by_role(roles=DEFAULT).count(), 2
         )
@@ -165,7 +166,6 @@ class GenericObjectRestrictionTest(TestCase):
         )
 
     def test_qset_ctype_perm(self):
-        DEFAULT = 1
         ROLE2 = 2
         self.assertEquals(
             self.TestGroup.objects.visible(self.user2).count(), 1
