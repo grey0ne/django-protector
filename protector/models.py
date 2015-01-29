@@ -116,6 +116,9 @@ class OwnerToPermissionQuerySet(QuerySet):
         )
 
 
+OwnerToPermissionManager = models.Manager.from_queryset(OwnerToPermissionQuerySet)
+
+
 class OwnerToPermission(models.Model):
     """
         This model is two-wat generic many-to-many link from owner_object to owned object
@@ -149,6 +152,8 @@ class OwnerToPermission(models.Model):
         blank=True, null=True
     )
     roles = models.IntegerField(verbose_name=_('roles'), default=DEFAULT_ROLE)
+
+    objects = OwnerToPermissionManager()
 
     class Meta:
         verbose_name = _('owner to permission link')

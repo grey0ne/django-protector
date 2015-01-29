@@ -18,7 +18,10 @@ def get_all_permission_owners(permission, include_superuser=False, include_group
     query.conditions.append("op.permission_id = {perm_id!s}")
     query.params.update({'perm_id': permission.id})
     table_name = get_user_model()._meta.db_table
-    condition = "{table_name!s}.id IN ({subquery!s})".format(
+    condition = "{table_name!s}.id IN ({subquery!s})"
+    if include_superuser:
+        condition += " OR {table_name!s}.is_superuser = True"
+    condition = condition.format(
         table_name=table_name, subquery=query.get_raw_query()
     )
     return get_user_model().objects.extra(where=[condition])
@@ -36,9 +39,9 @@ def get_all_user_permissions(user, obj=None):
                 {permission_owners_query!s}
             ) perm_query ON perm_query.perm_id = perm_table.id
         """.format(
-        permission_table=Permission._meta.db_table,
-        content_type_table=ContentType._meta.db_table,
-        permission_owners_query=perm_query.get_raw_query(),
+            permission_table=Permission._meta.db_table,
+            content_type_table=ContentType._meta.db_table,
+            permission_owners_query=perm_query.get_raw_query(),
         )
     ])
     query.fields.append("perm_table.id as id")
