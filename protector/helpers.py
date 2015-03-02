@@ -2,7 +2,7 @@ from django.contrib.auth.models import Permission
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from protector.query import Query
-from protector.models import get_permission_owners_query, \
+from protector.models import get_permission_owners_query, OwnerToPermission, \
     NULL_OWNER_TO_PERMISSION_OBJECT_ID, NULL_OWNER_TO_PERMISSION_CTYPE_ID
 
 
@@ -49,6 +49,18 @@ def get_all_user_permissions(user, obj=None):
     query.fields.append("ctype_table.app_label as app_label")
     perms = Permission.objects.raw(query.get_raw_query())
     return set("%s.%s" % (p.app_label, p.codename) for p in perms)
+
+
+def get_permission_owners_of_type_for_object(permission, owner_content_type, content_object):
+    qs = OwnerToPermission.objects.filter(
+        content_type=ContentType.objects.get_for_model(content_object._meta.model),
+        object_id=content_object.pk,
+        owner_content_type=owner_content_type,
+        permission=permission
+    )
+    return owner_content_type.model_class().objects.filter(
+        id__in=qs.values_list('owner_object_id', flat=True)
+    )
 
 
 def _get_permissions_query(obj=None):

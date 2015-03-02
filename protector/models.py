@@ -503,6 +503,18 @@ class Restricted(models.Model):
             content_type=ContentType.objects.get_for_model(self)
         )[0]
 
+    def get_restriction_descendants(self):
+        ctype_dict = {}
+        restriction_obj = self.get_restriction_obj()
+        descendants = restriction_obj.get_descendants()
+        ctype_dict = {}
+        for restriction in descendants:
+            ctype_id = restriction.content_type_id
+            if ctype_id not in ctype_dict:
+                ctype_dict[ctype_id] = []
+            ctype_dict[ctype_id].append(restriction.object_id)
+        return ctype_dict
+
     def restrict(self):
         # method restricts all objects down by restriction heirarachy
         if self.restriction != self:
@@ -510,14 +522,7 @@ class Restricted(models.Model):
             current_restriction_ctype_id = self.restriction_content_type_id
             self.restriction = self
             if self.pk is not None:
-                restriction_obj = self.get_restriction_obj()
-                descendants = restriction_obj.get_descendants()
-                ctype_dict = {}
-                for restriction in descendants:
-                    ctype_id = restriction.content_type_id
-                    if ctype_id not in ctype_dict:
-                        ctype_dict[ctype_id] = []
-                    ctype_dict[ctype_id].append(restriction.object_id)
+                ctype_dict = self.get_restriction_descendants()
                 for ctype_id, object_ids in ctype_dict.iteritems():
                     ctype = ContentType.objects.get_for_id(ctype_id)
                     objs = ctype.model_class().objects.filter(
@@ -529,6 +534,26 @@ class Restricted(models.Model):
                         restriction_content_type=ContentType.objects.get_for_model(self)
                     )
             self.save()
+
+    def unrestrict(self):
+        if self.restriction is None:
+            return
+        ctype_dict = self.get_restriction_descendants()
+        current_restriction_id = self.restriction_id
+        current_restriction_ctype_id = self.restriction_content_type_id
+        for ctype_id, object_ids in ctype_dict.iteritems():
+            ctype = ContentType.objects.get_for_id(ctype_id)
+            objs = ctype.model_class().objects.filter(
+                pk__in=object_ids, restriction_id=current_restriction_id,
+                restriction_content_type_id=current_restriction_ctype_id
+            )
+            # take only objects that restricted by same object as self
+            objs.update(
+                restriction_id=None,
+                restriction_content_type=None
+            )
+        self.restriction = None
+        self.save()
 
     @classmethod
     def get_view_permission_name(cls):
