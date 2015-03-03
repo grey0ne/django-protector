@@ -121,8 +121,8 @@ OwnerToPermissionManager = models.Manager.from_queryset(OwnerToPermissionQuerySe
 
 class OwnerToPermission(models.Model):
     """
-        This model is two-wat generic many-to-many link from owner_object to owned object
-        Multiple links to from owner to object is supported i.e. different permissions
+        This model is two-way generic many-to-many link from owner_object to owned object
+        Multiple links from owner to object is supported i.e. different permissions
     """
     ADD_PERMISSION = ADD_PERMISSION_PERMISSION
     object_id = models.PositiveIntegerField(
@@ -383,8 +383,8 @@ def _get_filter_by_perm_condition(qset, user_id, perm_id, obj_id_field, ctype_id
         WHERE gug.user_id = {user_id!s} AND (
             (
                 op.permission_id = {perm_id!s} AND
-                op.object_id = {obj_id_field!s} AND
-                op.content_type_id = {ctype_id_field!s}
+                op.content_type_id = {ctype_id_field!s} AND
+                (op.object_id = {obj_id_field!s} OR op.object_id = {null_owner_id!s})
             ) OR (
                 gl.permission_id = {perm_id!s} AND
                 gl.content_type_id = {ctype_id_field!s} AND

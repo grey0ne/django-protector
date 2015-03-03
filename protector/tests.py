@@ -3,7 +3,7 @@ from django.contrib.auth.models import Permission
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.test.utils import override_settings
-from protector.models import get_user_ctype, GenericGlobalPerm, get_default_group_ctype
+from protector.models import get_user_ctype, GenericGlobalPerm, get_default_group_ctype, OwnerToPermission
 from protector.helpers import get_all_permission_owners, get_permission_owners_of_type_for_object
 
 
@@ -218,4 +218,24 @@ class GenericObjectRestrictionTest(TestCase):
         )
         self.assertEquals(
             owners.count(), 1
+        )
+
+    def test_ctype_permission(self):
+        groups = self.TestGroup.objects.visible(self.user2)
+        self.assertFalse(
+            self.user2.has_perm(self.TestGroup.get_view_permission_name(), self.group2)
+        )
+        self.assertEquals(
+            groups.count(), 1
+        )
+        OwnerToPermission.objects.create(
+            owner=self.user2,
+            content_type=ContentType.objects.get_for_model(self.TestGroup),
+            permission=self.TestGroup.get_view_permission(),
+        ) 
+        self.assertEquals(
+            groups.count(), 2
+        )
+        self.assertTrue(
+            self.user2.has_perm(self.TestGroup.get_view_permission_name(), self.group2)
         )

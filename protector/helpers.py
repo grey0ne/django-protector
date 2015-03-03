@@ -72,12 +72,15 @@ def _get_permissions_query(obj=None):
     else:
         query.params.update({
             'object_pk': obj.pk, 'ctype_pk': ContentType.objects.get_for_model(obj).pk,
-            'null_object_condition': NULL_OBJECT_CONDITION
+            'null_object_condition': NULL_OBJECT_CONDITION,
+            'null_object_id': NULL_OWNER_TO_PERMISSION_OBJECT_ID
         })
         query.conditions.append(
             """
                 ({null_object_condition!s})
-                OR (op.object_id = {object_pk!s} AND op.content_type_id = {ctype_pk!s})
+                OR (op.content_type_id = {ctype_pk!s} AND
+                    (op.object_id = {object_pk!s} OR op.object_id = {null_object_id!s})
+                )
                 OR (
                     gl.content_type_id = gug.group_content_type_id AND
                     gug.group_id = {object_pk!s} AND gug.group_content_type_id = {ctype_pk!s}
