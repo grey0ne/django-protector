@@ -596,14 +596,15 @@ class Restricted(models.Model):
             # Create a corresponding restriction object and link it to parent
 
     def add_viewer(self, viewer, responsible=None, roles=None):
-        perm = OwnerToPermission(
+        otp, created = OwnerToPermission(
             content_object=self,
             owner=viewer,
             permission=self.get_view_permission(),
-            responsible=responsible,
-            roles=roles
+            defaults={'responsible': responsible, 'roles': roles}
         )
-        perm.save()
+        if not created and otp.roles != roles:
+            otp.roles |= roles
+            otp.save()
 
 
 def get_default_group_ctype():
@@ -620,11 +621,13 @@ class UserGroupManager(models.Manager):
 
     def add(self, group, responsible=None, roles=None):
         roles = roles or group.DEFAULT_ROLE
-        GenericUserToGroup(
+        utg, created = GenericUserToGroup.objects.get_or_create(
             user=self.instance, group=group,
-            roles=roles,
-            responsible=responsible
-        ).save()
+            defaults={'responsible': responsible, 'roles': roles}
+        )
+        if not created and utg.roles != roles:
+            utg.roles |= roles
+            utg.save()
 
     def remove(self, group):
         GenericUserToGroup.objects.filter(
@@ -708,17 +711,23 @@ class OwnerPermissionManager(models.Manager):
             generic_restriction_relations__owner_content_type__in=[ctype]
         ).distinct()
 
-    def add(self, perm, obj=None, responsible=None):
+    def add(self, perm, obj=None, responsible=None, roles=None):
+        roles = roles or DEFAULT_ROLE
         kwargs = {
             'owner_object_id': self.instance.id,
             'owner_content_type': ContentType.objects.get_for_model(self.instance),
             'permission': perm,
-            'responsible': responsible
+            'defaults': {'responsible': responsible, 'roles': roles}
         }
         if obj is not None:
             kwargs['object_id'] = obj.pk
             kwargs['content_type'] = ContentType.objects.get_for_model(obj)
-        OwnerToPermission.objects.get_or_create(**kwargs)
+        otp, created = OwnerToPermission.objects.get_or_create(
+            **kwargs
+        )
+        if not created and otp.roles != roles:
+            otp.roles |= roles
+            otp.save()
 
     def remove(self, perm, obj=None):
         qset = OwnerToPermission.objects.filter(
