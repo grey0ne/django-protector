@@ -1,3 +1,29 @@
-django_protector.egg-info
-dist
+# Temporary Python files
 *.pyc
+*.egg-info
+__pycache__
+.ipynb_checkpoints
+
+# Temporary OS files
+Icon*
+
+# Temporary virtualenv files
+.cache
+env
+
+# Testing and coverage results
+.coverage
+pyunit.xml
+
+# Build and release directories
+build
+dist
+
+# Sublime Text
+*.sublime-workspace
+
+# Eclipse
+.settings
+
+# docs
+docs/_build/*
