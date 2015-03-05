@@ -237,3 +237,20 @@ class GenericObjectRestrictionTest(TestCase):
         self.assertTrue(
             self.user2.has_perm(self.TestGroup.get_view_permission_name(), self.group2)
         )
+
+    def test_superuser(self):
+        groups = self.TestGroup.objects.visible(self.user2)
+        self.assertFalse(
+            self.user2.has_perm(self.TestGroup.get_view_permission_name(), self.group2)
+        )
+        self.assertEquals(
+            groups.count(), 1
+        )
+        self.user2.is_superuser = True 
+        groups = self.TestGroup.objects.visible(self.user2)
+        self.assertEquals(
+            groups.count(), 2
+        )
+        self.assertTrue(
+            self.user2.has_perm(self.TestGroup.get_view_permission_name(), self.group2)
+        )

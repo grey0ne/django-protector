@@ -422,7 +422,7 @@ class RestrictedQuerySet(PermissionQuerySet):
         if user is None:
             return self.filter(restriction_id__isnull=True)
         if user.has_perm(self.model.get_view_permission_name()):
-            return self.all()
+            return self
         if user.id is None:
             return self.filter(restriction_id__isnull=True)
         condition = self._get_visible_condition(user.id, self.model.get_view_permission().id)
@@ -634,12 +634,20 @@ class UserGroupManager(models.Manager):
             utg.roles |= roles
             utg.save()
 
-    def remove(self, group):
-        GenericUserToGroup.objects.filter(
-            group_id=group.pk,
-            group_content_type=ContentType.objects.get_for_model(group),
-            user=self.instance
-        ).delete()
+    def remove(self, group, roles=None):
+        try:
+            utg = GenericUserToGroup.objects.get(
+                group_id=group.pk,
+                group_content_type=ContentType.objects.get_for_model(group),
+                user=self.instance
+            )
+        except GenericUserToGroup.DoesNotExist:
+            return
+        if roles is None or utg.roles == roles:
+            utg.delete()
+        else:
+            utg.roles &= ~roles
+            utg.save()
 
     def get_queryset(self, group_type=None):
         if group_type is None:
@@ -676,19 +684,18 @@ class GroupUserManager(models.Manager):
     def remove(self, user, roles=None):
         # if roles is None just remove user from group else remove role from user
         try:
-            link = GenericUserToGroup.objects.get(
+            utg = GenericUserToGroup.objects.get(
                 group_id=self.instance.pk,
                 group_content_type=ContentType.objects.get_for_model(self.instance),
                 user=user
             )
         except GenericUserToGroup.DoesNotExist:
             return
+        if roles is None or utg.roles == roles:
+            utg.delete()
         else:
-            if roles is None or link.roles == roles:
-                link.delete()
-            else:
-                link.roles -= roles
-                link.save()
+            utg.roles &= ~roles
+            utg.save()
 
     def by_role(self, roles):
         links = self.instance.users_relations.all()
@@ -734,19 +741,26 @@ class OwnerPermissionManager(models.Manager):
             otp.roles |= roles
             otp.save()
 
-    def remove(self, perm, obj=None):
-        qset = OwnerToPermission.objects.filter(
-            permission=perm, owner_object_id=self.instance.pk,
-            owner_content_type=ContentType.objects.get_for_model(self.instance)
-        )
+    def remove(self, perm, obj=None, roles=None):
         if obj is None:
-            qset.filter(object_id=None, content_type=None)
+            obj_id = NULL_OWNER_TO_PERMISSION_OBJECT_ID
+            obj_ctype_id = NULL_OWNER_TO_PERMISSION_CTYPE_ID
         else:
-            qset.filter(
-                object_id=obj.pk,
-                content_type=ContentType.objects.get_for_model(obj)
+            obj_id = obj.pk
+            obj_ctype_id = ContentType.objects.get_for_model(obj)
+        try:
+            otp = OwnerToPermission.objects.get(
+                permission=perm, owner_object_id=self.instance.pk,
+                owner_content_type=ContentType.objects.get_for_model(self.instance),
+                object_id=obj_id, content_type_id=obj_ctype_id
             )
-        qset.delete()
+        except OwnerToPermission.DoesNotExist:
+            return
+        if roles is None or otp.roles == roles:
+            otp.delete()
+        else:
+            otp.roles &= ~roles
+            otp.save()
 
 
 def get_permission_id_by_name(permission):
