@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.test.utils import override_settings
 from protector.models import get_user_ctype, GenericGlobalPerm, \
-    get_default_group_ctype, OwnerToPermission
+    get_default_group_ctype, OwnerToPermission, GenericUserToGroup
 from protector.helpers import get_all_permission_owners, get_permission_owners_of_type_for_object
 
 
@@ -269,4 +269,20 @@ class GenericObjectRestrictionTest(TestCase):
             self.user2.groups.by_ctype(
                 ContentType.objects.get_for_model(self.group2), ROLE2
             ).count(), 0
+        )
+
+    def test_user_to_group_by_role(self):
+        utg_qset = GenericUserToGroup.objects.filter(
+            group_id=self.group2.pk,
+            group_content_type=ContentType.objects.get_for_model(self.group2),
+            user=self.user2
+        )
+        DEFAULT = 1
+        ROLE2 = 2
+        self.group2.users.add(self.user2, ROLE2)
+        self.assertEquals(
+            utg_qset.by_role(DEFAULT).count(), 0
+        )
+        self.assertEquals(
+            utg_qset.by_role(ROLE2).count(), 1
         )

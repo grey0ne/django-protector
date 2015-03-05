@@ -71,6 +71,20 @@ class GenericGlobalPerm(models.Model):
         unique_together = ('content_type', 'permission')
 
 
+class GenericUserToGroupQuerySet(QuerySet):
+    def by_role(self, roles):
+        utg_table_name = self.model._meta.db_table
+        return self.extra(
+            where=["{utg_table}.roles & {roles!s}".format(
+                roles=roles,
+                utg_table=utg_table_name
+            )]
+        )
+
+
+GenericUserToGroupManager = models.Manager.from_queryset(GenericUserToGroupQuerySet)
+
+
 class GenericUserToGroup(models.Model):
     """
         This models is used for linking user to any possible group
@@ -90,6 +104,8 @@ class GenericUserToGroup(models.Model):
         to=settings.AUTH_USER_MODEL, related_name='created_group_relations',
         blank=True, null=True
     )
+
+    objects = GenericUserToGroupManager()
 
     class Meta:
         verbose_name = _('user to group link')
