@@ -4,7 +4,7 @@ python:
 env:
   - DJANGO=1.7.1
 install:
-  - pip install -q -r requirements.txt --use-mirrors
+  - pip install -q -r requirements.txt
   - pip install coveralls
 script:
   coverage run --source=protector setup.py test

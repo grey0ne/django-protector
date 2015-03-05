@@ -1,6 +1,8 @@
 =====
 Protector
 =====
+.. image:: https://travis-ci.org/grey0ne/django-protector.svg?branch=master :target: https://travis-ci.org/grey0ne/django-protector
+.. image:: https://coveralls.io/repos/grey0ne/django-protector/badge.svg?branch=master :target: https://coveralls.io/r/grey0ne/django-protector?branch=master
 
 Protector is used for managing object level permissions in performance efficient way. 
 It supports queryset filtering by permission and user. 
