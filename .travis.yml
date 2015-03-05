@@ -4,6 +4,9 @@ python:
 env:
   - DJANGO=1.7.1
 install:
-  - pip install -q Django==$DJANGO --use-mirrors
+  - pip install -q -r requirements.txt --use-mirrors
+  - pip install coveralls
 script:
-  - python setup.py test
+  coverage run --source=protector setup.py test
+after_success:
+  coveralls
