@@ -20,7 +20,7 @@ def get_all_permission_owners(permission, include_superuser=False, include_group
     table_name = get_user_model()._meta.db_table
     condition = "{table_name!s}.id IN ({subquery!s})"
     if include_superuser:
-        condition += " OR {table_name!s}.is_superuser = True"
+        condition += " OR {table_name!s}.is_superuser"
     condition = condition.format(
         table_name=table_name, subquery=query.get_raw_query()
     )

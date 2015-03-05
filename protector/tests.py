@@ -185,6 +185,8 @@ class GenericObjectRestrictionTest(TestCase):
         )
 
     def test_all_permission_owners(self):
+        self.user2.is_superuser = True
+        self.user2.save()
         self.user.permissions.add(self.permission)
         self.assertEquals(
             get_all_permission_owners(self.permission).count(), 1
@@ -193,6 +195,11 @@ class GenericObjectRestrictionTest(TestCase):
         self.group.users.add(self.user2)
         self.assertEquals(
             get_all_permission_owners(self.permission).count(), 2
+        )
+        self.assertEquals(
+            get_all_permission_owners(
+                self.permission2, include_superuser=True
+            ).count(), 1
         )
 
     def test_unrestrict(self):
