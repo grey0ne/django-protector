@@ -659,6 +659,22 @@ class UserGroupManager(models.Manager):
             ).values_list('group_id')
         )
 
+    def by_ctype(self, group_type, roles=None):
+        group_model = group_type.model_class()
+        utg_qset = GenericUserToGroup.objects.filter(
+            group_content_type=group_type,
+            user=self.instance
+        )
+        if roles is not None:
+            utg_qset = utg_qset.extra(
+                where=["roles & {roles!s}".format(
+                    roles=roles,
+                )]
+            )
+        return group_model.objects.filter(
+            pk__in=utg_qset.values_list('group_id')
+        )
+
 
 class GroupUserManager(models.Manager):
 
