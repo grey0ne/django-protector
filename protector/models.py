@@ -596,9 +596,12 @@ class Restricted(models.Model):
             # Create a corresponding restriction object and link it to parent
 
     def add_viewer(self, viewer, responsible=None, roles=None):
-        otp, created = OwnerToPermission(
-            content_object=self,
-            owner=viewer,
+        roles = roles or DEFAULT_ROLE
+        otp, created = OwnerToPermission.objects.get_or_create(
+            object_id=self.pk,
+            content_type=ContentType.objects.get_for_model(self),
+            owner_object_id=viewer.pk,
+            owner_content_type=ContentType.objects.get_for_model(viewer),
             permission=self.get_view_permission(),
             defaults={'responsible': responsible, 'roles': roles}
         )
@@ -622,7 +625,9 @@ class UserGroupManager(models.Manager):
     def add(self, group, responsible=None, roles=None):
         roles = roles or group.DEFAULT_ROLE
         utg, created = GenericUserToGroup.objects.get_or_create(
-            user=self.instance, group=group,
+            user=self.instance,
+            group_id=group.pk,
+            group_content_type=ContentType.objects.get_for_model(group),
             defaults={'responsible': responsible, 'roles': roles}
         )
         if not created and utg.roles != roles:

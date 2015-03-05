@@ -73,7 +73,7 @@ class GenericObjectRestrictionTest(TestCase):
         )
 
     def test_group_perm(self):
-        self.group.users.add(self.user2)
+        self.user2.groups.add(self.group)
         self.group.permissions.add(self.permission)
         self.group.permissions.add(self.permission2)
         self.assertTrue(
@@ -213,9 +213,7 @@ class GenericObjectRestrictionTest(TestCase):
         self.assertEquals(
             owners.count(), 0
         )
-        self.user2.permissions.add(
-            self.TestGroup.get_view_permission(), self.group2
-        )
+        self.group2.add_viewer(self.user2)
         self.assertEquals(
             owners.count(), 1
         )
