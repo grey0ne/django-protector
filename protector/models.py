@@ -206,7 +206,7 @@ class OwnerToPermission(models.Model):
             )
         if self.roles:
             result += "Roles %s. " % (self.roles,)
-        result += " Permission %s" % (self.permission.codename,)
+        result += "Permission %s" % (self.permission.codename,)
         return result
 
     def save(self, *args, **kwargs):

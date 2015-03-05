@@ -1,11 +1,14 @@
 from django.db import models
 from django.conf import settings
-from protector.models import AbstractGenericGroup, Restricted, UserGenericPermsMixin
+from protector.models import AbstractGenericGroup, Restricted, UserGenericPermsMixin,\
+    PermissionedManager
 from django.contrib.auth.models import AbstractBaseUser
 
 
 class TestGroup(AbstractGenericGroup, Restricted):
     name = models.CharField(max_length=100)
+    
+    by_perm = PermissionedManager()
     
     class Meta:
         verbose_name = u'Test Group'

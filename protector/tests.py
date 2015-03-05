@@ -279,10 +279,70 @@ class GenericObjectRestrictionTest(TestCase):
         )
         DEFAULT = 1
         ROLE2 = 2
+        ROLE3 = 4
         self.group2.users.add(self.user2, ROLE2)
         self.assertEquals(
             utg_qset.by_role(DEFAULT).count(), 0
         )
         self.assertEquals(
             utg_qset.by_role(ROLE2).count(), 1
+        )
+        self.group2.users.add(self.user2, ROLE3)
+        self.assertEquals(
+            utg_qset.by_role(ROLE2).count(), 1
+        )
+        self.user2.groups.remove(self.group2, ROLE2)
+        self.assertEquals(
+            utg_qset.by_role(ROLE2).count(), 0
+        )
+        self.assertEquals(
+            utg_qset.by_role(ROLE3).count(), 1
+        )
+        self.user2.groups.remove(self.group2, ROLE3)
+        self.user2.groups.remove(self.group2, ROLE3)  # Test DoesNotExist
+        self.assertEquals(
+            utg_qset.by_role(ROLE3).count(), 0
+        )
+
+    def test_permissioned_manager(self):
+        groups = self.TestGroup.by_perm.filter_by_permission(
+            self.user2, self.TestGroup.get_view_permission_name()
+        )
+        self.assertEquals(
+            groups.count(), 0
+        )
+        self.user2.permissions.add(self.group2.get_view_permission(), self.group2)
+        self.assertEquals(
+            groups.count(), 1
+        )
+
+    def test_owner_to_permission_unicode(self):
+        OwnerToPermission.objects.create(
+            owner=self.user2,
+            content_type=ContentType.objects.get_for_model(self.TestGroup),
+            permission=self.TestGroup.get_view_permission(),
+        )
+        otps = [otp.__unicode__() for otp in OwnerToPermission.objects.all()]
+        self.assertEquals(
+            otps[0], u'test_app.testuser.2 Roles 1. Permission view_restricted_objects'
+        )
+
+    def test_has_perms(self):
+        self.user2.permissions.add(self.permission)
+        self.assertFalse(
+            self.user2.has_perms([self.permission_key, self.permission2_key])
+        )
+        self.user2.permissions.add(self.permission2)
+        self.assertTrue(
+            self.user2.has_perms([self.permission_key, self.permission2_key])
+        )
+
+    def test_has_module_perms(self):
+        app_label = get_user_model()._meta.app_label 
+        self.assertFalse(
+            self.user2.has_module_perms(app_label)
+        )
+        self.user2.permissions.add(self.permission)
+        self.assertTrue(
+            self.user2.has_module_perms(app_label)
         )
