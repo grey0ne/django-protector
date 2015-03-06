@@ -75,10 +75,8 @@ class GenericUserToGroupQuerySet(QuerySet):
     def by_role(self, roles):
         utg_table_name = self.model._meta.db_table
         return self.extra(
-            where=["{utg_table}.roles & {roles!s}".format(
-                roles=roles,
-                utg_table=utg_table_name
-            )]
+            where=["{utg_table}.roles & %s".format(utg_table=utg_table_name)],
+            params=[roles]
         )
 
 
@@ -682,11 +680,7 @@ class UserGroupManager(models.Manager):
             user=self.instance
         )
         if roles is not None:
-            utg_qset = utg_qset.extra(
-                where=["roles & {roles!s}".format(
-                    roles=roles,
-                )]
-            )
+            utg_qset = utg_qset.extra(where=["roles & %s"], params=[roles])
         return group_model.objects.filter(
             pk__in=utg_qset.values_list('group_id')
         )
@@ -734,11 +728,7 @@ class GroupUserManager(models.Manager):
         if roles is None:
             links = links.filter(roles__isnull=True)
         else:
-            links = links.extra(
-                where=["roles & {roles!s}".format(
-                    roles=roles,
-                )]
-            )
+            links = links.extra(where=["roles & %s"], params=[roles])
         return get_user_model().objects.filter(id__in=links.values_list('user_id', flat=True))
 
 
