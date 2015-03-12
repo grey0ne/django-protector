@@ -798,3 +798,16 @@ def get_permission_id_by_name(permission):
             return None
         cache.set(cache_key, perm_id)
     return perm_id
+
+
+class PermAnnotatedMixin(QuerySet):
+
+    annotate_perms_for_user = None
+    
+    def annotate_perms(self, user):
+        new_qset = self.all()
+        new_qset.annotate_perms_for_user = user 
+        return new_qset
+
+    def _fetch_all(self):
+        super(PermAnnotatedMixin, self)._fetch_all() 
