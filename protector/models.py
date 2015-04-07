@@ -124,7 +124,7 @@ VIEW_RESTRICTED_OBJECTS = 'view_restricted_objects'
 
 class OwnerToPermissionQuerySet(QuerySet):
     def without_obj_perms(self):
-        return self.exclude(
+        return self.filter(
             object_id=NULL_OWNER_TO_PERMISSION_OBJECT_ID,
             content_type_id=NULL_OWNER_TO_PERMISSION_CTYPE_ID
         )
