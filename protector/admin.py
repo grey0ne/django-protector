@@ -26,7 +26,7 @@ class GenericGlobalPermAdmin(admin.ModelAdmin):
 
 class RestrictionAdmin(admin.ModelAdmin):
     list_display = ('parent', 'object_id', 'content_type')
-    raw_id_fields = ('parent')
+    raw_id_fields = ('parent', )
     list_select_related = ('parent', 'content_type')
 
 
