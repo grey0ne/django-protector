@@ -1,4 +1,5 @@
-import os, sys
+import os
+import sys
 os.environ['DJANGO_SETTINGS_MODULE'] = 'application.settings'
 test_dir = os.path.dirname(__file__)
 sys.path.insert(0, test_dir + '/test_project')
@@ -10,7 +11,6 @@ import django
 
 def runtests():
     django.setup()
-    TestRunner = get_runner(settings)
-    test_runner = TestRunner(verbosity=1, interactive=True)
+    test_runner = get_runner(settings)(verbosity=1, interactive=True)
     failures = test_runner.run_tests(['protector'])
     sys.exit(bool(failures))

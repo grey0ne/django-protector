@@ -48,7 +48,7 @@ def get_all_user_permissions(user, obj=None):
     query.fields.append("perm_table.codename as codename")
     query.fields.append("ctype_table.app_label as app_label")
     perms = Permission.objects.raw(query.get_raw_query())
-    return set("%s.%s" % (p.app_label, p.codename) for p in perms)
+    return set("{app}.{codename}".format(app=p.app_label, codename=p.codename) for p in perms)
 
 
 def get_permission_owners_of_type_for_object(permission, owner_content_type, content_object):

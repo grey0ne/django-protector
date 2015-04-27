@@ -10,7 +10,7 @@ ALL_PERMS_CACHE_FIELD = '_all_permissions_cache'
 
 def generate_perm_list(perm_qset):
     perm_qset = perm_qset.values_list('content_type__app_label', 'codename')
-    return set("%s.%s" % (ct, name) for ct, name in perm_qset)
+    return set("{0}.{1}".format(ct, name) for ct, name in perm_qset)
 
 
 class GenericPermissionBackend(object):
@@ -50,10 +50,3 @@ class GenericPermissionBackend(object):
             if perm[:perm.index('.')] == app_label:
                 return True
         return False
-
-    def get_user(self, user_id):
-        UserModel = get_user_model()
-        try:
-            return UserModel._default_manager.get(pk=user_id)
-        except UserModel.DoesNotExist:
-            return None

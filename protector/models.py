@@ -20,6 +20,10 @@ def get_user_ctype():
 NULL_OWNER_TO_PERMISSION_OBJECT_ID = 0
 NULL_OWNER_TO_PERMISSION_CTYPE_ID = 1  # That is ContentType ctype id
 
+ADD_PERMISSION_PERMISSION = 'add_permission'
+VIEW_RESTRICTED_OBJECTS = 'view_restricted_objects'
+
+VIEW_PERMISSION_NAME = 'protector.{0}'.format(VIEW_RESTRICTED_OBJECTS)
 
 #  Form a from clause for all permission related to their owners
 #  role of user in group must not be empty
@@ -111,15 +115,12 @@ class GenericUserToGroup(models.Model):
         unique_together = ('group_id', 'group_content_type', 'user')
 
     def __unicode__(self):
-        return "%s.%s.%s - %s" % (
-            self.group_content_type.app_label,
-            self.group_content_type.model,
-            self.group_id,
-            self.user.username
+        return "{app}.{model}.{group_id} - {username}".format(
+            app=self.group_content_type.app_label,
+            model=self.group_content_type.model,
+            group_id=self.group_id,
+            username=self.user.username
         )
-
-ADD_PERMISSION_PERMISSION = 'add_permission'
-VIEW_RESTRICTED_OBJECTS = 'view_restricted_objects'
 
 
 class OwnerToPermissionQuerySet(QuerySet):
@@ -435,7 +436,7 @@ class RestrictedQuerySet(PermissionQuerySet):
     def visible(self, user=None):
         if user is None:
             return self.filter(restriction_id__isnull=True)
-        if user.has_perm(self.model.get_view_permission_name()):
+        if user.has_perm(VIEW_PERMISSION_NAME):
             return self
         if user.id is None:
             return self.filter(restriction_id__isnull=True)
@@ -483,6 +484,7 @@ class Restricted(models.Model):
     """
         Inherit your model from that to enable visiblity restrictions
     """
+    VIEW_PERMISSION_NAME = VIEW_PERMISSION_NAME
 
     restriction_id = models.PositiveIntegerField(blank=True, null=True)
     restriction_content_type = models.ForeignKey(
@@ -569,13 +571,9 @@ class Restricted(models.Model):
         self.restriction = None
         self.save()
 
-    @classmethod
-    def get_view_permission_name(cls):
-        return '%s.%s' % (OwnerToPermission._meta.app_label, VIEW_RESTRICTED_OBJECTS)
-
     def is_visible(self, user=None):
         return self.restriction is None or (user is not None and user.has_perm(
-            self.__class__.get_view_permission_name(), self.restriction
+            VIEW_PERMISSION_NAME, self.restriction
         ))
 
     def is_restricted(self):
@@ -803,11 +801,11 @@ def get_permission_id_by_name(permission):
 class PermAnnotatedMixin(QuerySet):
 
     annotate_perms_for_user = None
-    
+
     def annotate_perms(self, user):
         new_qset = self.all()
-        new_qset.annotate_perms_for_user = user 
+        new_qset.annotate_perms_for_user = user
         return new_qset
 
     def _fetch_all(self):
-        super(PermAnnotatedMixin, self)._fetch_all() 
+        super(PermAnnotatedMixin, self)._fetch_all()

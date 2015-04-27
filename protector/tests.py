@@ -17,27 +17,27 @@ TestUser = get_user_model()
 )
 class GenericObjectRestrictionTest(TestCase):
 
-    def setUp(cls):
-        cls.TestGroup = get_default_group_ctype().model_class()
-        cls.user = TestUser.objects.create(username='test1', email='test@test.com')
-        cls.user2 = TestUser.objects.create(username='test2', email='test2@test.com')
-        cls.user3 = TestUser.objects.create(username='test3', email='test3@test.com')
-        cls.permission = Permission.objects.create(
+    def setUp(self):
+        self.TestGroup = get_default_group_ctype().model_class()
+        self.user = TestUser.objects.create(username='test1', email='test@test.com')
+        self.user2 = TestUser.objects.create(username='test2', email='test2@test.com')
+        self.user3 = TestUser.objects.create(username='test3', email='test3@test.com')
+        self.permission = Permission.objects.create(
             codename='test', content_type=get_user_ctype()
         )
-        cls.permission2 = Permission.objects.create(
+        self.permission2 = Permission.objects.create(
             codename='test2', content_type=get_user_ctype()
         )
-        cls.permission_key = get_user_ctype().app_label + '.test'
-        cls.permission2_key = get_user_ctype().app_label + '.test2'
-        cls.group = cls.TestGroup.objects.create(
+        self.permission_key = get_user_ctype().app_label + '.test'
+        self.permission2_key = get_user_ctype().app_label + '.test2'
+        self.group = self.TestGroup.objects.create(
             name='test_group'
         )
-        cls.group2 = cls.TestGroup.objects.create(
+        self.group2 = self.TestGroup.objects.create(
             name='test_group2'
         )
-        cls.group2.restrict()
-        cls.group2.save()
+        self.group2.restrict()
+        self.group2.save()
 
     def test_object_perm(self):
         self.assertFalse(
@@ -229,7 +229,7 @@ class GenericObjectRestrictionTest(TestCase):
     def test_ctype_permission(self):
         groups = self.TestGroup.objects.visible(self.user2)
         self.assertFalse(
-            self.user2.has_perm(self.TestGroup.get_view_permission_name(), self.group2)
+            self.user2.has_perm(self.TestGroup.VIEW_PERMISSION_NAME, self.group2)
         )
         self.assertEquals(
             groups.count(), 1
@@ -243,13 +243,13 @@ class GenericObjectRestrictionTest(TestCase):
             groups.count(), 2
         )
         self.assertTrue(
-            self.user2.has_perm(self.TestGroup.get_view_permission_name(), self.group2)
+            self.user2.has_perm(self.TestGroup.VIEW_PERMISSION_NAME, self.group2)
         )
 
     def test_superuser(self):
         groups = self.TestGroup.objects.visible(self.user2)
         self.assertFalse(
-            self.user2.has_perm(self.TestGroup.get_view_permission_name(), self.group2)
+            self.user2.has_perm(self.TestGroup.VIEW_PERMISSION_NAME, self.group2)
         )
         self.assertEquals(
             groups.count(), 1
@@ -260,7 +260,7 @@ class GenericObjectRestrictionTest(TestCase):
             groups.count(), 2
         )
         self.assertTrue(
-            self.user2.has_perm(self.TestGroup.get_view_permission_name(), self.group2)
+            self.user2.has_perm(self.TestGroup.VIEW_PERMISSION_NAME, self.group2)
         )
 
     def test_groups_by_ctype(self):
@@ -313,7 +313,7 @@ class GenericObjectRestrictionTest(TestCase):
 
     def test_permissioned_manager(self):
         groups = self.TestGroup.by_perm.filter_by_permission(
-            self.user2, self.TestGroup.get_view_permission_name()
+            self.user2, self.TestGroup.VIEW_PERMISSION_NAME
         )
         self.assertEquals(
             groups.count(), 0
@@ -345,7 +345,7 @@ class GenericObjectRestrictionTest(TestCase):
         )
 
     def test_has_module_perms(self):
-        app_label = get_user_model()._meta.app_label 
+        app_label = get_user_model()._meta.app_label
         self.assertFalse(
             self.user2.has_module_perms(app_label)
         )
