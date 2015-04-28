@@ -192,20 +192,20 @@ class OwnerToPermission(models.Model):
             ctype = None
         else:
             ctype = self.content_type
-        result = "%s.%s.%s " % (
-            self.owner_content_type.app_label,
-            self.owner_content_type.model,
-            self.owner_object_id,
+        result = "{app}.{model}.{pk} ".format(
+            app=self.owner_content_type.app_label,
+            model=self.owner_content_type.model,
+            pk=self.owner_object_id,
         )
         if self.object_id != 0:  # real object not global permission
-            result += "- %s.%s.%s. " % (
-                ctype.app_label if ctype else '',
-                ctype.model if ctype else '',
-                self.object_id or '',
+            result += "- {app}.{model}.{pk}. ".format(
+                app=ctype.app_label if ctype else '',
+                model=ctype.model if ctype else '',
+                pk=self.object_id or '',
             )
         if self.roles:
-            result += "Roles %s. " % (self.roles,)
-        result += "Permission %s" % (self.permission.codename,)
+            result += "Roles {roles}. ".format(roles=self.roles)
+        result += "Permission {perm}".format(perm=self.permission.codename)
         return result
 
     def save(self, *args, **kwargs):
@@ -474,9 +474,10 @@ class Restriction(MPTTModel, models.Model):
         unique_together = (('object_id', 'content_type'), )
 
     def __unicode__(self):
-        return '%s.%s %s' % (
-            self.content_type.app_label, self.content_type.model,
-            self.object_id
+        return '{app}.{model} {pk}' % (
+            app=self.content_type.app_label,
+            model=self.content_type.model,
+            pk=self.object_id
         )
 
 

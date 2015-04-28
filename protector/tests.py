@@ -323,7 +323,7 @@ class GenericObjectRestrictionTest(TestCase):
             groups.count(), 1
         )
 
-    def test_owner_to_permission_unicode(self):
+    def test_otp_unicode(self):
         OwnerToPermission.objects.create(
             owner=self.user2,
             content_type=ContentType.objects.get_for_model(self.TestGroup),

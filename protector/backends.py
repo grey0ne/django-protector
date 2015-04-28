@@ -30,8 +30,9 @@ class GenericPermissionBackend(object):
         if obj is None:
             cache_field_name = ALL_PERMS_CACHE_FIELD
         else:
-            cache_field_name = '%s_%s_%s' % (
-                ALL_PERMS_CACHE_FIELD, obj.pk, ContentType.objects.get_for_model(obj).id
+            cache_field_name = '{field}_{pk}_{ctype_id}'.format(
+                field=ALL_PERMS_CACHE_FIELD, pk=obj.pk,
+                ctype_id=ContentType.objects.get_for_model(obj).id
             )
         if not hasattr(user_obj, cache_field_name) or disable_cache:
             perms = get_all_user_permissions(user_obj, obj)
