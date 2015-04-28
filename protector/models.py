@@ -474,7 +474,7 @@ class Restriction(MPTTModel, models.Model):
         unique_together = (('object_id', 'content_type'), )
 
     def __unicode__(self):
-        return '{app}.{model} {pk}' % (
+        return '{app}.{model} {pk}'.format(
             app=self.content_type.app_label,
             model=self.content_type.model,
             pk=self.object_id
