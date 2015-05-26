@@ -51,3 +51,10 @@ class GenericPermissionBackend(object):
             if perm[:perm.index('.')] == app_label:
                 return True
         return False
+
+    def get_user(self, user_id):
+        UserModel = get_user_model()
+        try:
+            return UserModel._default_manager.get(pk=user_id)
+        except UserModel.DoesNotExist:
+            return None
