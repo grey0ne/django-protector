@@ -386,16 +386,9 @@ def _get_permission_filter(qset, user_id, perm_id):
     return _get_filter_by_perm_condition(qset, user_id, perm_id, obj_id_field, ctype_id_field)
 
 
-def _get_filter_by_perm_condition(qset, user_id, perm_id, obj_id_field, ctype_id_field):
-    # here we brake some rules about sql sanitizing
-    # it is a shame, but only ids is used so we can live with it
+def _generate_filter_condition(user_id, perm_id, ctype_id_field, obj_id_field):
     condition = """
-        EXISTS (
-            SELECT op.id FROM
-    """
-    condition += get_permission_owners_query()
-    condition += """
-        WHERE gug.user_id = {user_id!s} AND (
+        gug.user_id = {user_id!s} AND (
             (
                 op.permission_id = {perm_id!s} AND
                 op.content_type_id = {ctype_id_field!s} AND
@@ -406,15 +399,25 @@ def _get_filter_by_perm_condition(qset, user_id, perm_id, obj_id_field, ctype_id
                 gug.group_id = {obj_id_field!s}
             )
         )
-    )
     """
-    condition = condition.format(
+    return condition.format(
         user_id=user_id, perm_id=perm_id,
         null_owner_id=NULL_OWNER_TO_PERMISSION_OBJECT_ID,
         obj_id_field=obj_id_field,
         ctype_id_field=ctype_id_field
     )
-    return condition
+
+
+def _get_filter_by_perm_condition(qset, user_id, perm_id, obj_id_field, ctype_id_field):
+    # here we brake some rules about sql sanitizing
+    # it is a shame, but this is an internal function so we can live with it
+    condition = "EXISTS (SELECT op.id FROM {permission_owners} WHERE {filter_condition})"
+    return condition.format(
+        permission_owners=get_permission_owners_query(),
+        filter_condition=_generate_filter_condition(
+            user_id, perm_id, ctype_id_field, obj_id_field
+        )
+    )
 
 
 class PermissionQuerySet(QuerySet):

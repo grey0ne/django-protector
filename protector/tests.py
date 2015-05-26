@@ -5,7 +5,8 @@ from django.contrib.contenttypes.models import ContentType
 from django.test.utils import override_settings
 from protector.models import get_user_ctype, GenericGlobalPerm, \
     get_default_group_ctype, OwnerToPermission, GenericUserToGroup
-from protector.helpers import get_all_permission_owners, get_permission_owners_of_type_for_object
+from protector.helpers import get_all_permission_owners, get_permission_owners_of_type_for_object, \
+    filter_object_id_list
 
 
 TestUser = get_user_model()
@@ -352,4 +353,24 @@ class GenericObjectRestrictionTest(TestCase):
         self.user2.permissions.add(self.permission)
         self.assertTrue(
             self.user2.has_module_perms(app_label)
+        )
+
+    def test_object_list_filter(self):
+        group_ctype = ContentType.objects.get_for_model(self.TestGroup)
+        obj_list = (
+            (group_ctype.id, self.group.id),
+            (group_ctype.id, self.group2.id)
+        )
+        self.assertEquals(
+            len(filter_object_id_list(
+                obj_list, self.user2.id, self.TestGroup.get_view_permission().id
+            )), 0
+        )
+        self.user2.permissions.add(
+            self.TestGroup.get_view_permission(), self.group2
+        )
+        self.assertEquals(
+            filter_object_id_list(
+                obj_list, self.user2.id, self.TestGroup.get_view_permission().id
+            ), [(group_ctype.id, self.group2.id)]
         )

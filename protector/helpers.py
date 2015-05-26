@@ -1,12 +1,14 @@
 from django.contrib.auth.models import Permission
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
+from django.db import connection
 from protector.query import Query
 from protector.models import get_permission_owners_query, OwnerToPermission, \
-    NULL_OWNER_TO_PERMISSION_OBJECT_ID, NULL_OWNER_TO_PERMISSION_CTYPE_ID
+    NULL_OWNER_TO_PERMISSION_OBJECT_ID, NULL_OWNER_TO_PERMISSION_CTYPE_ID, \
+    _generate_filter_condition
 
-
-NULL_OBJECT_CONDITION = " op.object_id = {null_id!s} AND op.content_type_id = {null_ctype!s} ".format(
+condition_template = " op.object_id = {null_id!s} AND op.content_type_id = {null_ctype!s} "
+NULL_OBJECT_CONDITION = condition_template.format(
     null_id=NULL_OWNER_TO_PERMISSION_OBJECT_ID,
     null_ctype=NULL_OWNER_TO_PERMISSION_CTYPE_ID
 )
@@ -88,3 +90,26 @@ def _get_permissions_query(obj=None):
             """
         )
     return query
+
+
+def generate_obj_list_query(object_list):
+    select_list = ["SELECT %s as ctype_id, %s as object_id " % (obj[0], obj[1]) for obj in object_list]
+    return " UNION ALL ".join(select_list)
+
+
+def filter_object_id_list(object_list, user_id, permission_id):
+    # object_list list is a list of tuples (ctype_id, object_id)
+    query = """
+        SELECT ctype_id, object_id FROM ({ids_query}) AS ids
+        WHERE EXISTS (SELECT op.id FROM {permission_owners} WHERE {filter_condition})
+    """
+    query = query.format(
+        ids_query=generate_obj_list_query(object_list),
+        permission_owners=get_permission_owners_query(),
+        filter_condition=_generate_filter_condition(
+            user_id, permission_id, 'ids.ctype_id', 'ids.object_id'
+        )
+    )
+    cursor = connection.cursor()
+    cursor.execute(query)
+    return [(row[0], row[1]) for row in cursor.fetchall()]
