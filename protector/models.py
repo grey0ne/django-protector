@@ -32,6 +32,16 @@ VIEW_PERMISSION_NAME = 'protector.{0}'.format(VIEW_RESTRICTED_OBJECTS)
 DEFAULT_ROLE = 1
 
 
+def get_view_permission():
+    codename = VIEW_RESTRICTED_OBJECTS
+    if Restricted._view_perm is None:
+        ctype = ContentType.objects.get_for_model(OwnerToPermission)
+        Restricted._view_perm = Permission.objects.get(
+            codename=codename, content_type=ctype
+        )
+    return Restricted._view_perm
+
+
 def get_permission_owners_query():
     """
         This functions generate SQL statement for selecting groups and perms.
@@ -443,7 +453,7 @@ class RestrictedQuerySet(PermissionQuerySet):
             return self
         if user.id is None:
             return self.filter(restriction_id__isnull=True)
-        condition = self._get_visible_condition(user.id, self.model.get_view_permission().id)
+        condition = self._get_visible_condition(user.id, get_view_permission().id)
         return self.extra(where=[condition])
 
     def _get_visible_condition(self, user_id, perm_id):
@@ -497,22 +507,14 @@ class Restricted(models.Model):
     restriction = generic.GenericForeignKey('restriction_content_type', 'restriction_id')
 
     objects = RestrictedManager()
+    _view_perm = None
 
     class Meta:
         abstract = True
 
     @classmethod
     def get_view_permission(cls):
-        codename = VIEW_RESTRICTED_OBJECTS
-        if not hasattr(cls, '_view_perm'):
-            ctype = ContentType.objects.get_for_model(OwnerToPermission)
-            setattr(
-                cls, '_view_perm',
-                Permission.objects.get(
-                    codename=codename, content_type=ctype
-                )
-            )
-        return cls._view_perm
+        return get_view_permission()
 
     def get_parent_object(self):
         return None
@@ -618,7 +620,7 @@ class Restricted(models.Model):
             content_type=ContentType.objects.get_for_model(self),
             owner_object_id=viewer.pk,
             owner_content_type=ContentType.objects.get_for_model(viewer),
-            permission=self.get_view_permission(),
+            permission=get_view_permission(),
             defaults={'responsible': responsible, 'roles': roles}
         )
         if not created and otp.roles != roles:
