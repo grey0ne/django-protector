@@ -5,7 +5,7 @@ from protector.helpers import filter_object_id_list
 from protector.models import get_view_permission
 
 
-class ProtectedIndex(indexes.Indexable):
+class ProtectedIndex(indexes.SearchIndex):
     restriction_id = indexes.IntegerField(
         model_attr='restriction_id', indexed=False, null=True
     )
