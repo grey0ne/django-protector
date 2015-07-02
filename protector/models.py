@@ -24,6 +24,7 @@ ADD_PERMISSION_PERMISSION = 'add_permission'
 VIEW_RESTRICTED_OBJECTS = 'view_restricted_objects'
 
 VIEW_PERMISSION_NAME = 'protector.{0}'.format(VIEW_RESTRICTED_OBJECTS)
+ADD_PERMISSION_NAME = 'protector.{0}'.format(ADD_PERMISSION_PERMISSION)
 
 #  Form a from clause for all permission related to their owners
 #  role of user in group must not be empty
