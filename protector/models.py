@@ -7,7 +7,7 @@ from django.contrib import auth
 from django.contrib.auth.models import Permission
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
-from django.contrib.contenttypes import generic
+from django.contrib.contenttypes.fields import GenericRelation, GenericForeignKey
 from django.core.cache import cache
 from django.utils.translation import ugettext_lazy as _
 from mptt.models import MPTTModel, TreeForeignKey
@@ -109,7 +109,7 @@ class GenericUserToGroup(models.Model):
     roles = models.IntegerField(verbose_name=_('roles'), blank=True, null=True)
     group_id = models.PositiveIntegerField()
     group_content_type = models.ForeignKey(ContentType)
-    group = generic.GenericForeignKey('group_content_type', 'group_id')
+    group = GenericForeignKey('group_content_type', 'group_id')
     date_joined = models.DateTimeField(verbose_name=_('date joined'), auto_now_add=True)
     responsible = models.ForeignKey(
         verbose_name=_('responsible'),
@@ -159,13 +159,13 @@ class OwnerToPermission(models.Model):
         to=ContentType, related_name='restriction_group_relations',
         default=NULL_OWNER_TO_PERMISSION_CTYPE_ID
     )
-    content_object = generic.GenericForeignKey('content_type', 'object_id')
+    content_object = GenericForeignKey('content_type', 'object_id')
     owner_object_id = models.PositiveIntegerField(verbose_name=_('owner id'))
     owner_content_type = models.ForeignKey(
         verbose_name=_('owner type'),
         to=ContentType, related_name='restricted_object_relations'
     )
-    owner = generic.GenericForeignKey('owner_content_type', 'owner_object_id')
+    owner = GenericForeignKey('owner_content_type', 'owner_object_id')
     permission = models.ForeignKey(
         verbose_name=_('permission'),
         to=Permission, related_name='generic_restriction_relations'
@@ -236,7 +236,7 @@ class GenericPermsMixin(models.Model):
     """
         Mixin is can be used to easily retrieve all owners of permissions to this object
     """
-    permission_relations = generic.GenericRelation(
+    permission_relations = GenericRelation(
         OwnerToPermission, content_type_field='owner_content_type',
         object_id_field='owner_object_id'
     )
@@ -339,7 +339,7 @@ class AbstractGenericGroup(GenericPermsMixin):
     )
     DEFAULT_ROLE = PARTICIPANT
 
-    users_relations = generic.GenericRelation(
+    users_relations = GenericRelation(
         GenericUserToGroup, content_type_field='group_content_type',
         object_id_field='group_id'
     )
@@ -474,7 +474,7 @@ class Restriction(MPTTModel, models.Model):
     """
     object_id = models.PositiveIntegerField(blank=False, null=False)
     content_type = models.ForeignKey(ContentType, blank=False, null=False)
-    restricted_object = generic.GenericForeignKey('content_type', 'object_id')
+    restricted_object = GenericForeignKey('content_type', 'object_id')
 
     parent = TreeForeignKey(
         'self', verbose_name=_('parent object'),
@@ -504,7 +504,7 @@ class Restricted(models.Model):
     restriction_content_type = models.ForeignKey(
         ContentType, blank=True, null=True, related_name="%(app_label)s_%(class)s_restrictions"
     )
-    restriction = generic.GenericForeignKey('restriction_content_type', 'restriction_id')
+    restriction = GenericForeignKey('restriction_content_type', 'restriction_id')
 
     objects = RestrictedManager()
     _view_perm = None
