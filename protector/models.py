@@ -760,6 +760,9 @@ class OwnerPermissionManager(models.Manager):
         if obj is not None:
             kwargs['object_id'] = obj.pk
             kwargs['content_type'] = ContentType.objects.get_for_model(obj)
+        else:
+            kwargs['object_id'] = NULL_OWNER_TO_PERMISSION_OBJECT_ID
+            kwargs['content_type'] = ContentType.objects.get_for_id(NULL_OWNER_TO_PERMISSION_CTYPE_ID)
         otp, created = OwnerToPermission.objects.get_or_create(
             **kwargs
         )
