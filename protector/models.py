@@ -754,9 +754,13 @@ class OwnerPermissionManager(models.Manager):
         kwargs = {
             'owner_object_id': self.instance.id,
             'owner_content_type': ContentType.objects.get_for_model(self.instance),
-            'permission': perm,
             'defaults': {'responsible': responsible, 'roles': roles}
         }
+        if isinstance(perm, str):
+            kwargs['permission_id'] = get_permission_id_by_name(perm)
+        else:
+            kwargs['permission'] = perm
+
         if obj is not None:
             kwargs['object_id'] = obj.pk
             kwargs['content_type'] = ContentType.objects.get_for_model(obj)
