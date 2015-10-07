@@ -781,9 +781,15 @@ class OwnerPermissionManager(models.Manager):
         else:
             obj_id = obj.pk
             obj_ctype_id = ContentType.objects.get_for_model(obj)
+
+        if isinstance(perm, str):
+            perm_id = get_permission_id_by_name(perm)
+        else:
+            perm_id = perm.id
+
         try:
             otp = OwnerToPermission.objects.get(
-                permission=perm, owner_object_id=self.instance.pk,
+                permission_id=perm_id, owner_object_id=self.instance.pk,
                 owner_content_type=ContentType.objects.get_for_model(self.instance),
                 object_id=obj_id, content_type_id=obj_ctype_id
             )
