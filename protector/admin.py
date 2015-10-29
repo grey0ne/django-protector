@@ -5,16 +5,20 @@ from django.contrib import admin
 
 
 class OwnerToPermissionAdmin(admin.ModelAdmin):
-    list_filter = ('owner_content_type', )
-    list_display = ('owner_content_type', 'owner_object_id', 'date_issued', 'permission')
-    date_hierarchy = 'date_issued'
     search_fields = ('permission__name', )
+    list_filter = ('owner_content_type', )
+    list_display = (
+        'owner_content_type', 'owner_object_id', 'object_id',
+        'content_type', 'date_issued', 'permission'
+    )
+    list_select_related = ('owner_content_type', 'content_type', 'permission')
+    date_hierarchy = 'date_issued'
     raw_id_fields = ('owner_content_type', 'content_type', 'permission', 'responsible')
 
 
 class GenericUserToGroupAdmin(admin.ModelAdmin):
-    search_fields = ['user__username', ]
-    list_display = ['group_content_type', 'group_id', 'user', 'roles', 'date_joined']
+    search_fields = ('user__username', )
+    list_display = ('group_content_type', 'group_id', 'user', 'roles', 'date_joined')
     date_hierarchy = 'date_joined'
     raw_id_fields = ('user', 'responsible', 'group_content_type')
 
