@@ -19,6 +19,7 @@ class OwnerToPermissionAdmin(admin.ModelAdmin):
 class GenericUserToGroupAdmin(admin.ModelAdmin):
     search_fields = ('user__username', )
     list_display = ('group_content_type', 'group_id', 'user', 'roles', 'date_joined')
+    list_filter = ('group_content_type', )
     date_hierarchy = 'date_joined'
     raw_id_fields = ('user', 'responsible', 'group_content_type')
 
