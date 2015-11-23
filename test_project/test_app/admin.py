@@ -1,6 +1,6 @@
 from django.contrib import admin
 from test_app.models import TestUser, TestGroup
-from protector.admin import PermissionObjectInline, PermissionOwnerInline, RestrictedAdminMixin
+from protector.admin import PermissionObjectInline, PermissionOwnerInline, RestrictedAdminMixin, GenericGroupAdminMixin
 
 
 class TestUserAdmin(admin.ModelAdmin):
@@ -10,11 +10,10 @@ class TestUserAdmin(admin.ModelAdmin):
     )
 
 
-class TestGroupAdmin(RestrictedAdminMixin):
+class TestGroupAdmin(GenericGroupAdminMixin, RestrictedAdminMixin):
     list_display = ('name', )
     inlines = (
-        PermissionOwnerInline, 
-        PermissionObjectInline
+        PermissionObjectInline,
     )
 
 

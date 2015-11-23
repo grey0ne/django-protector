@@ -18,6 +18,29 @@ class RestrictedAdminMixin(admin.ModelAdmin):
         ]
 
 
+class UserGroupInline(GenericTabularInline):
+    model = GenericUserToGroup
+    verbose_name = 'User'
+    verbose_name_plural = 'Users'
+    ct_field = 'group_content_type'
+    ct_fk_field = 'group_id'
+    raw_id_fields = ('user', 'responsible')
+    list_select_related = ('user', )
+    extra = 1 
+    max_num = 10
+
+
+class GenericGroupAdminMixin(admin.ModelAdmin):
+    def __init__(self, *args, **kwargs):
+        super(GenericGroupAdminMixin, self).__init__(*args, **kwargs)
+        if not self.inlines:
+            self.inlines = []
+        if UserGroupInline not in self.inlines:
+            self.inlines = list(self.inlines)
+            self.inlines.append(UserGroupInline)
+            self.inlines.append(PermissionOwnerInline)
+
+
 class OwnerToPermissionAdmin(admin.ModelAdmin):
     search_fields = ('permission__name', )
     list_filter = ('owner_content_type', )
@@ -39,6 +62,7 @@ class PermissionObjectInline(GenericTabularInline):
     model = OwnerToPermission
     ct_field = 'content_type'
     ct_fk_field = 'object_id'
+    extra = 1 
 
 
 class PermissionOwnerInline(GenericTabularInline):
@@ -50,6 +74,7 @@ class PermissionOwnerInline(GenericTabularInline):
     model = OwnerToPermission
     ct_field = 'owner_content_type'
     ct_fk_field = 'owner_object_id'
+    extra = 1 
 
 
 class GenericUserToGroupAdmin(admin.ModelAdmin):
