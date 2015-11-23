@@ -27,3 +27,5 @@ dist
 
 # docs
 docs/_build/*
+
+test_project/db.sqlite3

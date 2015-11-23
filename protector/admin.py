@@ -2,6 +2,20 @@
 from protector.models import Restriction, OwnerToPermission, \
     GenericUserToGroup, GenericGlobalPerm
 from django.contrib import admin
+from django.contrib.contenttypes.admin import GenericTabularInline
+
+
+class RestrictedAdminMixin(admin.ModelAdmin):
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = super(RestrictedAdminMixin, self).get_fieldsets(request, obj)
+        restricted_fields = ('restriction_content_type', 'restriction_id')
+        for fieldset in fieldsets:
+            fieldset[1]['fields'] = [field for field in fieldset[1]['fields'] if field not in restricted_fields]
+        return fieldsets + [
+            (
+                u'Restriction options', {'fields': (restricted_fields,)}
+            ), 
+        ]
 
 
 class OwnerToPermissionAdmin(admin.ModelAdmin):
@@ -14,6 +28,28 @@ class OwnerToPermissionAdmin(admin.ModelAdmin):
     list_select_related = ('owner_content_type', 'content_type', 'permission')
     date_hierarchy = 'date_issued'
     raw_id_fields = ('owner_content_type', 'content_type', 'permission', 'responsible')
+
+
+class PermissionObjectInline(GenericTabularInline):
+    fields = ('owner_object_id', 'owner_content_type', 'permission', 'roles', 'responsible')
+    raw_id_fields = ('responsible', )
+    readonly_fields = ('date_issued', )
+    verbose_name = 'Permission owner'
+    verbose_name_plural = 'Permission owners'
+    model = OwnerToPermission
+    ct_field = 'content_type'
+    ct_fk_field = 'object_id'
+
+
+class PermissionOwnerInline(GenericTabularInline):
+    fields = ('object_id', 'content_type', 'permission', 'roles', 'responsible')
+    raw_id_fields = ('responsible', )
+    verbose_name = 'Permission'
+    verbose_name_plural = 'Permissions'
+    readonly_fields = ('date_issued', )
+    model = OwnerToPermission
+    ct_field = 'owner_content_type'
+    ct_fk_field = 'owner_object_id'
 
 
 class GenericUserToGroupAdmin(admin.ModelAdmin):
