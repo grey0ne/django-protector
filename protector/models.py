@@ -74,10 +74,10 @@ class GenericGlobalPerm(models.Model):
     """
     content_type = models.ForeignKey(
         ContentType, related_name='global_perms',
-        default=NULL_OWNER_TO_PERMISSION_CTYPE_ID
+        default=NULL_OWNER_TO_PERMISSION_CTYPE_ID, verbose_name=_('content type')
     )
     roles = models.IntegerField(verbose_name=_('roles'), default=DEFAULT_ROLE)
-    permission = models.ForeignKey(Permission)
+    permission = models.ForeignKey(to=Permission, verbose_name=_('permission'))
 
     class Meta:
         verbose_name = _('global group permission')
@@ -107,8 +107,8 @@ class GenericUserToGroup(models.Model):
         settings.AUTH_USER_MODEL, related_name='generic_group_relations'
     )
     roles = models.IntegerField(verbose_name=_('roles'), blank=True, null=True)
-    group_id = models.PositiveIntegerField()
-    group_content_type = models.ForeignKey(ContentType)
+    group_id = models.PositiveIntegerField(verbose_name=_('group id'))
+    group_content_type = models.ForeignKey(verbose_name=_('group content type'), to=ContentType)
     group = GenericForeignKey('group_content_type', 'group_id')
     date_joined = models.DateTimeField(verbose_name=_('date joined'), auto_now_add=True)
     responsible = models.ForeignKey(
@@ -258,9 +258,7 @@ class UserGenericPermsMixin(GenericPermsMixin):
     """
     is_superuser = models.BooleanField(
         verbose_name=_('superuser status'), default=False,
-        help_text=_(
-            'Designates that this user has all permissions without explicitly assigning them.'
-        )
+        help_text=_('Designates that user has all perms')
     )
 
     def __init__(self, *args, **kwargs):
@@ -472,8 +470,10 @@ class Restriction(MPTTModel, models.Model):
     """
         This model contains resriction hierarchy
     """
-    object_id = models.PositiveIntegerField(blank=False, null=False)
-    content_type = models.ForeignKey(ContentType, blank=False, null=False)
+    object_id = models.PositiveIntegerField(verbose_name=_('object id'), blank=False, null=False)
+    content_type = models.ForeignKey(
+        to=ContentType, verbose_name=_('content type'), blank=False, null=False
+    )
     restricted_object = GenericForeignKey('content_type', 'object_id')
 
     parent = TreeForeignKey(
@@ -500,9 +500,12 @@ class Restricted(models.Model):
     """
     VIEW_PERMISSION_NAME = VIEW_PERMISSION_NAME
 
-    restriction_id = models.PositiveIntegerField(blank=True, null=True)
+    restriction_id = models.PositiveIntegerField(
+        verbose_name=_('restriction id'), blank=True, null=True
+    )
     restriction_content_type = models.ForeignKey(
-        ContentType, blank=True, null=True, related_name="%(app_label)s_%(class)s_restrictions"
+        verbose_name=_('restriction content type id'),
+        to=ContentType, blank=True, null=True, related_name="%(app_label)s_%(class)s_restrictions"
     )
     restriction = GenericForeignKey('restriction_content_type', 'restriction_id')
 
@@ -766,7 +769,9 @@ class OwnerPermissionManager(models.Manager):
             kwargs['content_type'] = ContentType.objects.get_for_model(obj)
         else:
             kwargs['object_id'] = NULL_OWNER_TO_PERMISSION_OBJECT_ID
-            kwargs['content_type'] = ContentType.objects.get_for_id(NULL_OWNER_TO_PERMISSION_CTYPE_ID)
+            kwargs['content_type'] = ContentType.objects.get_for_id(
+                NULL_OWNER_TO_PERMISSION_CTYPE_ID
+            )
         otp, created = OwnerToPermission.objects.get_or_create(
             **kwargs
         )

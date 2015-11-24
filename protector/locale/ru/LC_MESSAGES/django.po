@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-11-24 13:24+0300\n"
+"POT-Creation-Date: 2015-11-24 13:46+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -66,9 +66,17 @@ msgstr "Модераторы права"
 msgid "Protector"
 msgstr "Protector"
 
+#: models.py:77 models.py:475
+msgid "content type"
+msgstr "тип объекта"
+
 #: models.py:79 models.py:109 models.py:179
 msgid "roles"
 msgstr "роли"
+
+#: models.py:80 models.py:170
+msgid "permission"
+msgstr "право"
 
 #: models.py:83
 msgid "global group permission"
@@ -77,6 +85,14 @@ msgstr "Глобальное право групп"
 #: models.py:84
 msgid "global group permissions"
 msgstr "Глобальные права групп"
+
+#: models.py:110
+msgid "group id"
+msgstr "идентификатор группы"
+
+#: models.py:111
+msgid "group content type"
+msgstr "тип группы"
 
 #: models.py:113
 msgid "date joined"
@@ -94,7 +110,7 @@ msgstr "связь пользователя и группы"
 msgid "user to group links"
 msgstr "связи пользователей и групп"
 
-#: models.py:154
+#: models.py:154 models.py:473
 msgid "object id"
 msgstr "идентификатор объекта"
 
@@ -109,10 +125,6 @@ msgstr "идентификатор владельца"
 #: models.py:165
 msgid "owner type"
 msgstr "тип владельца"
-
-#: models.py:170
-msgid "permission"
-msgstr "право"
 
 #: models.py:173
 msgid "date issued"
@@ -138,13 +150,11 @@ msgstr "видеть ограниченные объекты"
 msgid "superuser status"
 msgstr "статус суперпользователя"
 
-#: models.py:262
-msgid ""
-"Designates that this user has all permissions without explicitly assigning "
-"them."
-msgstr "Определяет что пользователь имеет все права без непосредственного их назначения"
+#: models.py:261
+msgid "Designates that user has all perms"
+msgstr "Определяет наличие всех прав у пользователя"
 
-#: models.py:338
+#: models.py:336
 msgid "Participant"
 msgstr "Участник"
 
@@ -159,3 +169,11 @@ msgstr "Ограничение на объект"
 #: models.py:486
 msgid "Objects restrictions"
 msgstr "Ограничения на объекты"
+
+#: models.py:504
+msgid "restriction id"
+msgstr "идентификатор ограниченного объекта"
+
+#: models.py:507
+msgid "restriction content type id"
+msgstr "тип ограниченного объекта"
