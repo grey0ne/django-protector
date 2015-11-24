@@ -1,9 +1,12 @@
 # coding:utf-8
 from protector.models import Restriction, OwnerToPermission, \
     GenericUserToGroup, GenericGlobalPerm
+from protector.admin_forms import PermissionModeratorForm
 from django.contrib import admin
+from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.admin import GenericTabularInline
 from django.contrib.contenttypes.models import ContentType
+from django.utils.translation import ugettext_lazy as _
 
 
 class RestrictedAdminMixin(admin.ModelAdmin):
@@ -20,18 +23,20 @@ class RestrictedAdminMixin(admin.ModelAdmin):
         fieldsets = super(RestrictedAdminMixin, self).get_fieldsets(request, obj)
         restricted_fields = ('restriction_content_type', 'restriction_id')
         for fieldset in fieldsets:
-            fieldset[1]['fields'] = [field for field in fieldset[1]['fields'] if field not in restricted_fields]
+            fieldset[1]['fields'] = [
+                field for field in fieldset[1]['fields'] if field not in restricted_fields
+            ]
         return fieldsets + [
             (
-                u'Restriction options', {'fields': (restricted_fields,)}
+                _('Restriction options'), {'fields': (restricted_fields,)}
             ),
         ]
 
 
 class UserGroupInline(GenericTabularInline):
     model = GenericUserToGroup
-    verbose_name = 'User'
-    verbose_name_plural = 'Users'
+    verbose_name = _('User')
+    verbose_name_plural = _('Users')
     ct_field = 'group_content_type'
     ct_fk_field = 'group_id'
     raw_id_fields = ('user', 'responsible', 'content_type')
@@ -41,6 +46,9 @@ class UserGroupInline(GenericTabularInline):
 
 
 class GenericGroupAdminMixin(admin.ModelAdmin):
+
+    save_on_top = True
+
     def __init__(self, *args, **kwargs):
         super(GenericGroupAdminMixin, self).__init__(*args, **kwargs)
         if not self.inlines:
@@ -52,6 +60,7 @@ class GenericGroupAdminMixin(admin.ModelAdmin):
 
 
 class OwnerToPermissionAdmin(admin.ModelAdmin):
+    save_as = True
     search_fields = ('permission__name', )
     list_filter = ('owner_content_type', )
     list_display = (
@@ -64,11 +73,14 @@ class OwnerToPermissionAdmin(admin.ModelAdmin):
 
 
 class PermissionObjectInline(GenericTabularInline):
-    fields = ('owner_object_id', 'owner_content_type', 'permission', 'roles', 'responsible')
+    fields = (
+        'owner_object_id', 'owner_content_type',
+        'permission', 'roles', 'responsible'
+    )
     raw_id_fields = ('responsible', 'owner_content_type', 'permission')
     readonly_fields = ('date_issued', )
-    verbose_name = 'Permission on this object'
-    verbose_name_plural = 'Permissions on this object'
+    verbose_name = _('Permission on this object')
+    verbose_name_plural = _('Permissions on this object')
     model = OwnerToPermission
     ct_field = 'content_type'
     ct_fk_field = 'object_id'
@@ -76,10 +88,13 @@ class PermissionObjectInline(GenericTabularInline):
 
 
 class PermissionOwnerInline(GenericTabularInline):
-    fields = ('object_id', 'content_type', 'permission', 'roles', 'responsible')
+    fields = (
+        'object_id', 'content_type', 'permission',
+        'roles', 'responsible'
+    )
     raw_id_fields = ('responsible', 'content_type', 'permission')
-    verbose_name = 'Permission'
-    verbose_name_plural = 'Permissions'
+    verbose_name = _('Permission')
+    verbose_name_plural = _('Permissions')
     readonly_fields = ('date_issued', )
     model = OwnerToPermission
     ct_field = 'owner_content_type'
@@ -88,6 +103,7 @@ class PermissionOwnerInline(GenericTabularInline):
 
 
 class GenericUserToGroupAdmin(admin.ModelAdmin):
+    save_as = True
     search_fields = ('user__username', )
     list_display = ('group_content_type', 'group_id', 'user', 'roles', 'date_joined')
     list_filter = ('group_content_type', )
@@ -96,6 +112,7 @@ class GenericUserToGroupAdmin(admin.ModelAdmin):
 
 
 class GenericGlobalPermAdmin(admin.ModelAdmin):
+    save_as = True
     raw_id_fields = ('permission', 'content_type')
     list_display = ('permission', 'content_type', 'roles')
 
@@ -106,8 +123,59 @@ class RestrictionAdmin(admin.ModelAdmin):
     list_select_related = ('parent', 'content_type')
 
 
+class ContentTypeAdmin(admin.ModelAdmin):
+    list_filter = ('app_label', )
+    list_display = ('app_label', 'model', 'name')
+    search_fields = ('app_label', 'model')
+
+
+class OwnerToPermissionInline(admin.TabularInline):
+    model = OwnerToPermission
+    fields = (
+        ('content_type', 'object_id'),
+        ('owner_content_type', 'owner_object_id'),
+        'permission', 'roles', 'responsible'
+    )
+    raw_id_fields = ('responsible', 'content_type', 'owner_content_type', 'permission')
+    verbose_name = _('Permission owner')
+    verbose_name_plural = _('Permission owners')
+    extra = 1
+
+
+class PermissionModeratorInline(GenericTabularInline):
+    model = OwnerToPermission
+    form = PermissionModeratorForm
+    raw_id_fields = ('owner_content_type', 'responsible')
+    verbose_name = _('Permission moderator')
+    verbose_name_plural = _('Permission moderators')
+    ct_field = 'content_type'
+    ct_fk_field = 'object_id'
+    extra = 1
+
+    def get_queryset(self, request):
+        qset = super(PermissionModeratorInline, self).get_queryset(request)
+        qset.filter(
+            permission__codename=OwnerToPermission.ADD_PERMISSION,
+            permission__content_type__app_label='protector'
+        )
+
+
+class PermissionAdmin(admin.ModelAdmin):
+    list_filter = ('content_type', )
+    list_display = ('name', 'codename', 'content_type', )
+    raw_id_fields = ('content_type', )
+    search_fields = ('name', 'codename', )
+
+    inlines = [
+        OwnerToPermissionInline, PermissionModeratorInline
+    ]
+
+
 admin.site.register(GenericGlobalPerm, GenericGlobalPermAdmin)
 admin.site.register(GenericUserToGroup, GenericUserToGroupAdmin)
 admin.site.register(OwnerToPermission, OwnerToPermissionAdmin)
 admin.site.register(Restriction, RestrictionAdmin)
-admin.site.register(ContentType)
+admin.site.register(Permission, PermissionAdmin)
+
+if ContentType not in admin.site._registry:
+    admin.site.register(ContentType, ContentTypeAdmin)
