@@ -1,2 +1,4 @@
 include LICENSE
-include README.rst
+include README.md
+recursive-include protector/locale *
+recursive-include protector/migrations *

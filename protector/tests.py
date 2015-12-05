@@ -3,8 +3,8 @@ from django.contrib.auth.models import Permission
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.test.utils import override_settings
-from protector.models import get_user_ctype, GenericGlobalPerm, \
-    get_default_group_ctype, OwnerToPermission, GenericUserToGroup
+from protector.models import GenericGlobalPerm, OwnerToPermission, GenericUserToGroup
+from protector.internals import get_default_group_ctype, get_user_ctype
 from protector.helpers import get_all_permission_owners, get_permission_owners_of_type_for_object, \
     filter_object_id_list
 

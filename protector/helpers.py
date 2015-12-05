@@ -1,17 +1,22 @@
 from django.contrib.auth.models import Permission
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
+from django.core.cache import cache
 from django.db import connection
+from django.apps import apps
 from protector.query import Query
-from protector.models import get_permission_owners_query, OwnerToPermission, \
+from protector.internals import get_permission_owners_query, \
     NULL_OWNER_TO_PERMISSION_OBJECT_ID, NULL_OWNER_TO_PERMISSION_CTYPE_ID, \
-    _generate_filter_condition
+    _generate_filter_condition, _get_permission_filter, VIEW_RESTRICTED_OBJECTS
+
 
 condition_template = " op.object_id = {null_id!s} AND op.content_type_id = {null_ctype!s} "
 NULL_OBJECT_CONDITION = condition_template.format(
     null_id=NULL_OWNER_TO_PERMISSION_OBJECT_ID,
     null_ctype=NULL_OWNER_TO_PERMISSION_CTYPE_ID
 )
+
+_view_perm = None
 
 
 def get_all_permission_owners(permission, include_superuser=False, include_groups=True, obj=None):
@@ -54,6 +59,7 @@ def get_all_user_permissions(user, obj=None):
 
 
 def get_permission_owners_of_type_for_object(permission, owner_content_type, content_object):
+    OwnerToPermission = apps.get_model('protector', 'OwnerToPermission')
     qs = OwnerToPermission.objects.filter(
         content_type=ContentType.objects.get_for_model(content_object._meta.model),
         object_id=content_object.pk,
@@ -93,7 +99,9 @@ def _get_permissions_query(obj=None):
 
 
 def generate_obj_list_query(object_list):
-    select_list = ["SELECT %s as ctype_id, %s as object_id " % (obj[0], obj[1]) for obj in object_list]
+    select_list = [
+        "SELECT %s as ctype_id, %s as object_id " % (obj[0], obj[1]) for obj in object_list
+    ]
     return " UNION ALL ".join(select_list)
 
 
@@ -113,3 +121,40 @@ def filter_object_id_list(object_list, user_id, permission_id):
     cursor = connection.cursor()
     cursor.execute(query)
     return [(row[0], row[1]) for row in cursor.fetchall()]
+
+
+def get_permission_id_by_name(permission):
+    cache_key = 'permission_id_cache_' + permission
+    perm_id = cache.get(cache_key, None)
+    if perm_id is None:
+        try:
+            perm_id = Permission.objects.get(
+                codename=permission.split('.')[1],
+                content_type__app_label=permission.split('.')[0]
+            ).id
+        except Permission.DoesNotExist:
+            return None
+        cache.set(cache_key, perm_id)
+    return perm_id
+
+
+def filter_queryset_by_permission(qset, user, permission):
+    perm_id = get_permission_id_by_name(permission)
+    if user.has_perm(permission):
+        return qset.all()
+    if user.id is None or perm_id is None:
+        return qset.none()
+    condition = _get_permission_filter(qset, user.id, perm_id)
+    return qset.extra(where=[condition])
+
+
+def get_view_permission():
+    codename = VIEW_RESTRICTED_OBJECTS
+    global _view_perm
+    OwnerToPermission = apps.get_model('protector', 'OwnerToPermission')
+    if _view_perm is None:
+        ctype = ContentType.objects.get_for_model(OwnerToPermission)
+        _view_perm = Permission.objects.get(
+            codename=codename, content_type=ctype
+        )
+    return _view_perm

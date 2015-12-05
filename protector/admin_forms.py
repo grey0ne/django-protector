@@ -1,5 +1,6 @@
 from django import forms
-from protector.models import OwnerToPermission, get_permission_id_by_name
+from protector.models import OwnerToPermission
+from protector.helpers import get_permission_id_by_name
 
 
 class PermissionModeratorForm(forms.ModelForm):
