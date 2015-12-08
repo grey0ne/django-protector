@@ -1,4 +1,7 @@
 from django.db.models.query import QuerySet
+from django.db.models import F
+from django.apps import apps
+from django.contrib.contenttypes.models import ContentType
 from protector.internals import VIEW_PERMISSION_NAME, NULL_OWNER_TO_PERMISSION_OBJECT_ID, \
     NULL_OWNER_TO_PERMISSION_CTYPE_ID, _get_restriction_filter
 from protector.helpers import filter_queryset_by_permission, get_view_permission
@@ -67,13 +70,33 @@ class PermAnnotatedMixin(QuerySet):
 
 
 class GenericGroupQuerySet(QuerySet):
-    
+
     def update(self, *args, **kwargs):
+        # Automatically update group links
+        # WARNING it does NOT automatically delete stale perms
         super(GenericGroupQuerySet, self).update(*args, **kwargs)
-        to_update = {}
+        ctype = ContentType.objects.get_for_model(self.model)
+        links_to_create = []
+        GenericUserToGroup = apps.get_model('protector', 'GenericUserToGroup')
         for field, roles in self.model.MEMBER_FOREIGN_KEY_FIELDS:
             if field in kwargs:
-                to_update[field]
-                GenericUserToGroup.objects.filter(
-                     
+                ids = set(self.values_list('id', flat=True))
+
+                links_qset = GenericUserToGroup.objects.filter(
+                    group_id__in=ids, group_content_type=ctype,
+                    user=kwargs[field]
                 )
+                links_qset.update(roles=F('roles').bitand(roles))
+                existing_ids = set(links_qset.values_list('group_id', flat=True))
+                for id in (ids - existing_ids):
+                    links_to_create.append(GenericUserToGroup(
+                        group_id=id, group_content_type=ctype, user=kwargs[field],
+                        responsible=kwargs[field], roles=roles
+                    ))
+        if links_to_create:
+            GenericUserToGroup.objects.bulk_create(links_to_create)
+
+    def create(self, **kwargs):
+        instance = super(GenericGroupQuerySet, self).create(**kwargs)
+        instance._update_member_foreign_key()
+        return instance

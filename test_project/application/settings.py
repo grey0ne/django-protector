@@ -56,3 +56,5 @@ STATIC_URL = '/static/'
 
 AUTH_USER_MODEL = 'test_app.TestUser'
 PROTECTOR_GENERIC_GROUP = 'test_app.TestGroup'
+
+AUTHENTICATION_BACKENDS=('protector.backends.GenericPermissionBackend',)

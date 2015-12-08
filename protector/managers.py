@@ -3,20 +3,21 @@ from django.apps import apps
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth import get_user_model
 from protector.querysets import GenericUserToGroupQuerySet, PermissionQuerySet, \
-    RestrictedQuerySet, OwnerToPermissionQuerySet
+    RestrictedQuerySet, OwnerToPermissionQuerySet, GenericGroupQuerySet
 from protector.internals import get_default_group_ctype, DEFAULT_ROLE, \
     NULL_OWNER_TO_PERMISSION_OBJECT_ID, NULL_OWNER_TO_PERMISSION_CTYPE_ID
 from protector.helpers import get_permission_id_by_name
 
+
 GenericUserToGroupManager = models.Manager.from_queryset(GenericUserToGroupQuerySet)
 
-
 PermissionedManager = models.Manager.from_queryset(PermissionQuerySet)
-
 
 RestrictedManager = models.Manager.from_queryset(RestrictedQuerySet)
 
 OwnerToPermissionManager = models.Manager.from_queryset(OwnerToPermissionQuerySet)
+
+GenericGroupManager = models.Manager.from_queryset(GenericGroupQuerySet)
 
 
 class UserGroupManager(models.Manager):
@@ -197,7 +198,3 @@ class OwnerPermissionManager(models.Manager):
         else:
             otp.roles &= ~roles
             otp.save()
-
-
-class GenericGroupManager(models.Manager):
-    pass

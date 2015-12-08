@@ -1,11 +1,20 @@
 from django.db import models
 from protector.models import AbstractGenericGroup, Restricted, UserGenericPermsMixin
+from protector.querysets import GenericGroupQuerySet, RestrictedQuerySet
 from protector.managers import PermissionedManager
 from django.contrib.auth.models import AbstractBaseUser, UserManager
 
 
+class RestrictedGroupQuerySet(GenericGroupQuerySet, RestrictedQuerySet):
+    pass
+
+RestrictedGroupManager = models.Manager.from_queryset(RestrictedGroupQuerySet)
+
+
 class TestGroup(AbstractGenericGroup, Restricted):
     name = models.CharField(max_length=100)
+
+    objects = RestrictedGroupManager()
 
     by_perm = PermissionedManager()
 

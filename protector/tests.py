@@ -13,7 +13,6 @@ TestUser = get_user_model()
 
 
 @override_settings(
-    AUTHENTICATION_BACKENDS=('protector.backends.GenericPermissionBackend',),
     DISABLE_GENERIC_PERMISSION_CACHE=True
 )
 class GenericObjectRestrictionTest(TestCase):

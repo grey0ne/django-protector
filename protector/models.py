@@ -14,7 +14,8 @@ from protector.internals import NULL_OWNER_TO_PERMISSION_CTYPE_ID, \
     VIEW_PERMISSION_NAME, get_user_ctype
 from protector.helpers import get_view_permission
 from protector.managers import GenericUserToGroupManager, OwnerToPermissionManager, \
-    OwnerPermissionManager, UserGroupManager, GroupUserManager, RestrictedManager
+    OwnerPermissionManager, UserGroupManager, GroupUserManager, RestrictedManager, \
+    GenericGroupManager
 
 
 #  Form a from clause for all permission related to their owners
@@ -282,6 +283,8 @@ class AbstractGenericGroup(GenericPermsMixin):
         object_id_field='group_id'
     )
 
+    objects = GenericGroupManager()
+
     class Meta:
         abstract = True
 
@@ -291,6 +294,9 @@ class AbstractGenericGroup(GenericPermsMixin):
 
     def save(self, *args, **kwargs):
         super(AbstractGenericGroup, self).save(*args, **kwargs)
+        self._update_member_foreign_key()
+
+    def _update_member_foreign_key(self):
         for field, roles in self.MEMBER_FOREIGN_KEY_FIELDS:
             self.users.add(getattr(self, field), roles=roles)
 
