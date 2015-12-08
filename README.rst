@@ -97,3 +97,47 @@ To enable user view one or all restricted objects::
 To filter model objects visible by user::
     
     Comment.objects.visible(user)
+
+
+Global Permissions
+-----------------------------
+
+You could define Template-like permissions. For example you want all group moderators to have edit_permission on their group.
+Such templates could be created In Global Group Permissions admin interface. You should choose ContentType of your group, roles and, of course, permission those roles should have.
+No further actions required::
+
+    user.has_perm('someapp.edit_permission', somegroup)
+
+would return true if user is moderator in somegroup
+
+   
+Permission on Foreign Key to User
+------------------------------
+
+Every so often you would like owners of your objects to have some permissions of their objects.
+Easy peasy.
+You should inherit you object, for example TestPost from AbstractGenericGroup
+Like so::
+
+    class TestPost(AbstractGenericGroup):
+        SUBSCRIBER = 1
+        AUTHOR = 2
+        ROLES = (
+            (SUBSCRIBER, 'Subscriber'),
+            (AUTHOR, 'Author')
+        )
+        author = models.ForeignKey(to=TestUser)
+
+        MEMBER_FOREIGN_KEY_FIELDS = (
+            ('author', AUTHOR),
+        )
+
+        class Meta:
+            permissions = (
+                ('manage_post', 'Manage Post'),
+            )
+
+
+MEMBER_FOREIGN_KEY_FIELDS defines which foreign key gets which role.
+
+Notice: This is accomplished via some denormalization and works through create, save and update model and manager methods overloading
