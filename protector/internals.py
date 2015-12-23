@@ -2,6 +2,7 @@ from django.apps import apps
 from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from protector.query import Query
 
 
 ADD_PERMISSION_PERMISSION = 'add_permission'
@@ -13,6 +14,12 @@ VIEW_PERMISSION_NAME = 'protector.{0}'.format(VIEW_RESTRICTED_OBJECTS)
 #  Need this to avoid null values in OwnerToPermission table
 NULL_OWNER_TO_PERMISSION_OBJECT_ID = 0
 NULL_OWNER_TO_PERMISSION_CTYPE_ID = 1  # That is ContentType ctype id
+
+condition_template = " op.object_id = {null_id!s} AND op.content_type_id = {null_ctype!s} "
+NULL_OBJECT_CONDITION = condition_template.format(
+    null_id=NULL_OWNER_TO_PERMISSION_OBJECT_ID,
+    null_ctype=NULL_OWNER_TO_PERMISSION_CTYPE_ID
+)
 
 DEFAULT_ROLE = 1
 
@@ -103,6 +110,33 @@ def _get_restriction_filter(qset, user_id, perm_id):
             table_name=qset.model._meta.db_table
         )
     return _get_filter_by_perm_condition(qset, user_id, perm_id, obj_id_field, ctype_id_field)
+
+
+def _get_permissions_query(obj=None):
+    query = Query(
+        tables=[get_permission_owners_query()]
+    )
+    if obj is None:
+        query.conditions.append(NULL_OBJECT_CONDITION)
+    else:
+        query.params.update({
+            'object_pk': obj.pk, 'ctype_pk': ContentType.objects.get_for_model(obj).pk,
+            'null_object_condition': NULL_OBJECT_CONDITION,
+            'null_object_id': NULL_OWNER_TO_PERMISSION_OBJECT_ID
+        })
+        query.conditions.append(
+            """
+                ({null_object_condition!s})
+                OR (op.content_type_id = {ctype_pk!s} AND
+                    (op.object_id = {object_pk!s} OR op.object_id = {null_object_id!s})
+                )
+                OR (
+                    gl.content_type_id = gug.group_content_type_id AND
+                    gug.group_id = {object_pk!s} AND gug.group_content_type_id = {ctype_pk!s}
+                )
+            """
+        )
+    return query
 
 
 def get_default_group_ctype():

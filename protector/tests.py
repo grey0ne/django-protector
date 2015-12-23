@@ -152,6 +152,9 @@ class GenericObjectRestrictionTest(TestCase):
         ROLE2 = 2
         self.group.users.add(self.user2, roles=ROLE2)
         self.group.users.add(self.user, roles=DEFAULT)
+        self.assertFalse(
+            self.user2.has_perm(self.permission2_key, self.group)
+        )
         GenericGlobalPerm.objects.create(
             content_type=ContentType.objects.get_for_model(self.TestGroup),
             roles=ROLE2, permission=self.permission2

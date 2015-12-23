@@ -5,16 +5,9 @@ from django.core.cache import cache
 from django.db import connection
 from django.apps import apps
 from protector.query import Query
-from protector.internals import get_permission_owners_query, \
-    NULL_OWNER_TO_PERMISSION_OBJECT_ID, NULL_OWNER_TO_PERMISSION_CTYPE_ID, \
-    _generate_filter_condition, _get_permission_filter, VIEW_RESTRICTED_OBJECTS
+from protector.internals import get_permission_owners_query, _generate_filter_condition, \
+    _get_permission_filter, VIEW_RESTRICTED_OBJECTS, _get_permissions_query
 
-
-condition_template = " op.object_id = {null_id!s} AND op.content_type_id = {null_ctype!s} "
-NULL_OBJECT_CONDITION = condition_template.format(
-    null_id=NULL_OWNER_TO_PERMISSION_OBJECT_ID,
-    null_ctype=NULL_OWNER_TO_PERMISSION_CTYPE_ID
-)
 
 _view_perm = None
 
@@ -36,7 +29,7 @@ def get_all_permission_owners(permission, include_superuser=False, include_group
 
 def get_all_user_permissions(user, obj=None):
     perm_query = _get_permissions_query(obj)
-    perm_query.fields.append("IFNULL(op.permission_id, gl.permission_id) as perm_id")
+    perm_query.fields.append("op.permission_id as perm_id")
     perm_query.fields.append("gl.permission_id AS gl_perm_id")
     perm_query.conditions.append("gug.user_id = {user_id!s}".format(user_id=user.id))
     query = Query(tables=[
@@ -45,6 +38,7 @@ def get_all_user_permissions(user, obj=None):
             perm_table.content_type_id=ctype_table.id INNER JOIN (
                 {permission_owners_query!s}
             ) perm_query ON perm_query.perm_id = perm_table.id
+                OR perm_query.gl_perm_id = perm_table.id
         """.format(
             permission_table=Permission._meta.db_table,
             content_type_table=ContentType._meta.db_table,
@@ -69,33 +63,6 @@ def get_permission_owners_of_type_for_object(permission, owner_content_type, con
     return owner_content_type.model_class().objects.filter(
         id__in=qs.values_list('owner_object_id', flat=True)
     )
-
-
-def _get_permissions_query(obj=None):
-    query = Query(
-        tables=[get_permission_owners_query()]
-    )
-    if obj is None:
-        query.conditions.append(NULL_OBJECT_CONDITION)
-    else:
-        query.params.update({
-            'object_pk': obj.pk, 'ctype_pk': ContentType.objects.get_for_model(obj).pk,
-            'null_object_condition': NULL_OBJECT_CONDITION,
-            'null_object_id': NULL_OWNER_TO_PERMISSION_OBJECT_ID
-        })
-        query.conditions.append(
-            """
-                ({null_object_condition!s})
-                OR (op.content_type_id = {ctype_pk!s} AND
-                    (op.object_id = {object_pk!s} OR op.object_id = {null_object_id!s})
-                )
-                OR (
-                    gl.content_type_id = gug.group_content_type_id AND
-                    gug.group_id = {object_pk!s} AND gug.group_content_type_id = {ctype_pk!s}
-                )
-            """
-        )
-    return query
 
 
 def generate_obj_list_query(object_list):
