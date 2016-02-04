@@ -26,18 +26,21 @@ class UserGroupManager(models.Manager):
         super(UserGroupManager, self).__init__()
         self.instance = instance
 
-    def add(self, group, responsible=None, roles=None):
-        roles = roles or group.DEFAULT_ROLE
+    def add(self, *groups, **kwargs):
+        roles = kwargs.get('roles')
+        responsible = kwargs.get('responsible')
         GenericUserToGroup = apps.get_model('protector', 'GenericUserToGroup')
-        utg, created = GenericUserToGroup.objects.get_or_create(
-            user=self.instance,
-            group_id=group.pk,
-            group_content_type=ContentType.objects.get_for_model(group),
-            defaults={'responsible': responsible, 'roles': roles}
-        )
-        if not created and utg.roles != roles:
-            utg.roles |= roles
-            utg.save()
+        for group in groups:
+            roles = roles or group.DEFAULT_ROLE
+            utg, created = GenericUserToGroup.objects.get_or_create(
+                user=self.instance,
+                group_id=group.pk,
+                group_content_type=ContentType.objects.get_for_model(group),
+                defaults={'responsible': responsible, 'roles': roles}
+            )
+            if not created and utg.roles != roles:
+                utg.roles |= roles
+                utg.save()
 
     def remove(self, group, roles=None):
         GenericUserToGroup = apps.get_model('protector', 'GenericUserToGroup')
@@ -90,17 +93,19 @@ class GroupUserManager(models.Manager):
         user_ids = self.instance.users_relations.values_list('user_id', flat=True)
         return get_user_model().objects.filter(id__in=user_ids)
 
-    def add(self, user, roles=None, responsible=None):
+    def add(self, *users, **kwargs):
+        roles = kwargs.get('roles', self.instance.DEFAULT_ROLE)
+        responsible = kwargs.get('responsible')
         GenericUserToGroup = apps.get_model('protector', 'GenericUserToGroup')
-        roles = roles or self.instance.DEFAULT_ROLE
-        gug, created = GenericUserToGroup.objects.get_or_create(
-            user=user, group_id=self.instance.id,
-            group_content_type=ContentType.objects.get_for_model(self.instance),
-            defaults={'roles': roles, 'responsible': responsible}
-        )
-        if not created:
-            gug.roles |= roles
-            gug.save()
+        for user in users:
+            gug, created = GenericUserToGroup.objects.get_or_create(
+                user=user, group_id=self.instance.id,
+                group_content_type=ContentType.objects.get_for_model(self.instance),
+                defaults={'roles': roles, 'responsible': responsible}
+            )
+            if not created:
+                gug.roles |= roles
+                gug.save()
 
     def remove(self, user, roles=None):
         GenericUserToGroup = apps.get_model('protector', 'GenericUserToGroup')

@@ -269,7 +269,7 @@ class GenericObjectRestrictionTest(TestCase):
     def test_groups_by_ctype(self):
         DEFAULT = 1
         ROLE2 = 2
-        self.group2.users.add(self.user2, DEFAULT)
+        self.group2.users.add(self.user2, roles=DEFAULT)
         self.assertEquals(
             self.user2.groups.by_ctype(
                 ContentType.objects.get_for_model(self.group2), DEFAULT
@@ -290,14 +290,14 @@ class GenericObjectRestrictionTest(TestCase):
         DEFAULT = 1
         ROLE2 = 2
         ROLE3 = 4
-        self.group2.users.add(self.user2, ROLE2)
+        self.group2.users.add(self.user2, roles=ROLE2)
         self.assertEquals(
             utg_qset.by_role(DEFAULT).count(), 0
         )
         self.assertEquals(
             utg_qset.by_role(ROLE2).count(), 1
         )
-        self.group2.users.add(self.user2, ROLE3)
+        self.group2.users.add(self.user2, roles=ROLE3)
         self.assertEquals(
             utg_qset.by_role(ROLE2).count(), 1
         )
