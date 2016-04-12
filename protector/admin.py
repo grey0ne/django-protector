@@ -39,7 +39,7 @@ class UserGroupInline(GenericTabularInline):
     verbose_name_plural = _('Users')
     ct_field = 'group_content_type'
     ct_fk_field = 'group_id'
-    raw_id_fields = ('user', 'responsible', 'content_type')
+    raw_id_fields = ('user', 'responsible', 'group_content_type')
     list_select_related = ('user', )
     extra = 1
     max_num = 10

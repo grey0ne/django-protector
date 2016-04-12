@@ -12,7 +12,7 @@ from protector.internals import get_permission_owners_query, _generate_filter_co
 _view_perm = None
 
 
-def get_all_permission_owners(permission, include_superuser=False, include_groups=True, obj=None):
+def get_all_permission_owners(permission, include_superuser=False, obj=None):
     query = _get_permissions_query(obj)
     query.fields.append("gug.user_id AS id")
     query.conditions.append("op.permission_id = {perm_id!s}")
