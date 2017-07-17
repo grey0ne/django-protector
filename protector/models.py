@@ -390,7 +390,7 @@ class Restricted(models.Model):
             self.restriction = self
             if self.pk is not None:
                 ctype_dict = self.get_restriction_descendants()
-                for ctype_id, object_ids in ctype_dict.iteritems():
+                for ctype_id, object_ids in ctype_dict.items():
                     ctype = ContentType.objects.get_for_id(ctype_id)
                     objs = ctype.model_class().objects.filter(
                         pk__in=object_ids, restriction_id=current_restriction_id,
@@ -408,7 +408,7 @@ class Restricted(models.Model):
         ctype_dict = self.get_restriction_descendants()
         current_restriction_id = self.restriction_id
         current_restriction_ctype_id = self.restriction_content_type_id
-        for ctype_id, object_ids in ctype_dict.iteritems():
+        for ctype_id, object_ids in ctype_dict.items():
             ctype = ContentType.objects.get_for_id(ctype_id)
             objs = ctype.model_class().objects.filter(
                 pk__in=object_ids, restriction_id=current_restriction_id,
