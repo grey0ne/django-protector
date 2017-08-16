@@ -154,7 +154,7 @@ class OwnerPermissionManager(models.Manager):
             'owner_content_type': ContentType.objects.get_for_model(self.instance),
             'defaults': {'responsible': responsible, 'roles': roles}
         }
-        if isinstance(perm, str):
+        if isinstance(perm, basestring):
             kwargs['permission_id'] = get_permission_id_by_name(perm)
         else:
             kwargs['permission'] = perm
@@ -184,7 +184,7 @@ class OwnerPermissionManager(models.Manager):
             obj_id = obj.pk
             obj_ctype_id = ContentType.objects.get_for_model(obj)
 
-        if isinstance(perm, str):
+        if isinstance(perm, basestring):
             perm_id = get_permission_id_by_name(perm)
         else:
             perm_id = perm.id
