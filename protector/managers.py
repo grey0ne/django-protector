@@ -7,6 +7,7 @@ from protector.querysets import GenericUserToGroupQuerySet, PermissionQuerySet, 
 from protector.internals import get_default_group_ctype, DEFAULT_ROLE, \
     NULL_OWNER_TO_PERMISSION_OBJECT_ID, NULL_OWNER_TO_PERMISSION_CTYPE_ID
 from protector.helpers import get_permission_id_by_name
+from past.builtins import basestring
 
 
 GenericUserToGroupManager = models.Manager.from_queryset(GenericUserToGroupQuerySet)
