@@ -383,7 +383,7 @@ class Restricted(models.Model):
         return ctype_dict
 
     def restrict(self):
-        # method restricts all objects down by restriction heirarachy
+        # method restricts all objects down by restriction hierarchy
         if self.restriction != self:
             current_restriction_id = self.restriction_id
             current_restriction_ctype_id = self.restriction_content_type_id
