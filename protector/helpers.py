@@ -125,3 +125,20 @@ def get_view_permission():
             codename=codename, content_type=ctype
         )
     return _view_perm
+
+
+def is_user_having_perm_on_any_object(user_id, permission):
+    perm_id = get_permission_id_by_name(permission)
+    query = """
+        SELECT op.id FROM {permission_owners}
+        WHERE op.permission_id = {permission_id} AND gug.user_id = {user_id}
+        LIMIT 1;
+    """
+    query = query.format(
+        permission_owners=get_permission_owners_query(),
+        permission_id=perm_id,
+        user_id=user_id
+    )
+    cursor = connection.cursor()
+    cursor.execute(query)
+    return len(cursor.fetchall()) > 0

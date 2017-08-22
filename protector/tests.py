@@ -6,7 +6,7 @@ from django.test.utils import override_settings
 from protector.models import GenericGlobalPerm, OwnerToPermission, GenericUserToGroup
 from protector.internals import get_default_group_ctype, get_user_ctype
 from protector.helpers import get_all_permission_owners, get_permission_owners_of_type_for_object, \
-    filter_object_id_list
+    filter_object_id_list, is_user_having_perm_on_any_object
 
 
 TestUser = get_user_model()
@@ -375,4 +375,25 @@ class GenericObjectRestrictionTest(TestCase):
             filter_object_id_list(
                 obj_list, self.user2.id, self.TestGroup.get_view_permission().id
             ), [(group_ctype.id, self.group2.id)]
+        )
+
+    def test_user_has_perm_on_any_object(self):
+        self.assertEquals(
+            is_user_having_perm_on_any_object(self.user.id, self.permission_key), False
+        )
+        self.user.permissions.add(self.permission, self.group2)
+        self.assertEquals(
+            is_user_having_perm_on_any_object(self.user.id, self.permission_key), True
+        )
+        self.assertEquals(
+            is_user_having_perm_on_any_object(self.user.id, self.permission2_key), False
+        )
+        self.user.permissions.add(self.permission, self.group2)
+        self.user.permissions.remove(self.permission, self.group2)
+        self.assertEquals(
+            is_user_having_perm_on_any_object(self.user.id, self.permission_key), False
+        )
+        self.user.permissions.add(self.permission)
+        self.assertEquals(
+            is_user_having_perm_on_any_object(self.user.id, self.permission_key), True
         )
