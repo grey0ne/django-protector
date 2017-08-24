@@ -9,7 +9,7 @@ Protector
 
 Protector is used for managing object level permissions in performance efficient way. 
 It supports queryset filtering by permission and user. 
-Also it allow every object in your project to behave as a user group. i.e. adding permissions and users with roles.
+Also it allows every object in your project to behave as a user group. i.e. adding permissions and users with roles.
 
 Quick start
 -----------
@@ -25,7 +25,7 @@ Quick start
         'protector',
     )
 
-3. Add protector authentication backend. Also you should remove default auth backend::
+3. Replace default auth backend with Protector backend::
 
     AUTHENTICATION_BACKENDS = (
         ...
@@ -58,7 +58,7 @@ Additional steps
 
     class Group(AbstractGenericGroup):
 
-4. Inherit your Querysets from PermissionQuerySet to conviniently filter by permission::
+4. Inherit your Querysets from PermissionQuerySet to filter by permission easily::
     
     some_qset.filter_by_permission(user, 'some_app.some_perm')
 
