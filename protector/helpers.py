@@ -127,7 +127,9 @@ def get_view_permission():
     return _view_perm
 
 
-def is_user_having_perm_on_any_object(user_id, permission):
+def is_user_having_perm_on_any_object(user, permission):
+    if user.is_superuser:
+        return True
     perm_id = get_permission_id_by_name(permission)
     query = """
         SELECT op.id FROM {permission_owners}
@@ -137,7 +139,7 @@ def is_user_having_perm_on_any_object(user_id, permission):
     query = query.format(
         permission_owners=get_permission_owners_query(),
         permission_id=perm_id,
-        user_id=user_id
+        user_id=user.id
     )
     cursor = connection.cursor()
     cursor.execute(query)

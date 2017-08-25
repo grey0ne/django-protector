@@ -379,21 +379,31 @@ class GenericObjectRestrictionTest(TestCase):
 
     def test_user_has_perm_on_any_object(self):
         self.assertEquals(
-            is_user_having_perm_on_any_object(self.user.id, self.permission_key), False
+            is_user_having_perm_on_any_object(self.user, self.permission_key), False
         )
         self.user.permissions.add(self.permission, self.group2)
         self.assertEquals(
-            is_user_having_perm_on_any_object(self.user.id, self.permission_key), True
+            is_user_having_perm_on_any_object(self.user, self.permission_key), True
         )
         self.assertEquals(
-            is_user_having_perm_on_any_object(self.user.id, self.permission2_key), False
+            is_user_having_perm_on_any_object(self.user, self.permission2_key), False
         )
         self.user.permissions.add(self.permission, self.group2)
         self.user.permissions.remove(self.permission, self.group2)
         self.assertEquals(
-            is_user_having_perm_on_any_object(self.user.id, self.permission_key), False
+            is_user_having_perm_on_any_object(self.user, self.permission_key), False
         )
         self.user.permissions.add(self.permission)
         self.assertEquals(
-            is_user_having_perm_on_any_object(self.user.id, self.permission_key), True
+            is_user_having_perm_on_any_object(self.user, self.permission_key), True
+        )
+
+    def test_superuser_has_perm_on_any_object(self):
+        self.assertEquals(
+            is_user_having_perm_on_any_object(self.user, self.permission_key), False
+        )
+        self.user.is_superuser = True
+        self.user.save()
+        self.assertEquals(
+            is_user_having_perm_on_any_object(self.user, self.permission_key), True
         )
