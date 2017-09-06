@@ -471,3 +471,12 @@ class Restricted(models.Model):
         if not created and otp.roles != roles:
             otp.roles |= roles
             otp.save()
+
+
+class PermissionInfo(models.Model):
+    permission = models.OneToOneField(to=Permission, related_name='info')
+    description = models.TextField(verbose_name='description', blank=True, null=True)
+    
+    class Meta:
+        verbose_name = 'Permission Info'
+        verbose_name_plural = 'Permissions Info'

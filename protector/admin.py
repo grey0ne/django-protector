@@ -1,6 +1,6 @@
 # coding:utf-8
 from protector.models import Restriction, OwnerToPermission, \
-    GenericUserToGroup, GenericGlobalPerm
+    GenericUserToGroup, GenericGlobalPerm, PermissionInfo
 from protector.admin_forms import PermissionModeratorForm
 from django.contrib import admin
 from django.contrib.auth.models import Permission
@@ -160,6 +160,12 @@ class PermissionModeratorInline(GenericTabularInline):
         )
 
 
+class PermissionInfoInline(admin.StackedInline):
+    model = PermissionInfo
+    max_num = 1
+    can_delete = False
+
+
 class PermissionAdmin(admin.ModelAdmin):
     list_filter = ('content_type', )
     list_display = ('name', 'codename', 'content_type', )
@@ -167,7 +173,8 @@ class PermissionAdmin(admin.ModelAdmin):
     search_fields = ('name', 'codename', )
 
     inlines = [
-        OwnerToPermissionInline, PermissionModeratorInline
+        OwnerToPermissionInline, PermissionModeratorInline,
+        PermissionInfoInline
     ]
 
 

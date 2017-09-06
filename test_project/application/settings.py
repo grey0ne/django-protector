@@ -11,6 +11,17 @@ DEBUG = True
 
 TEMPLATE_DEBUG = False
 
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': ['django.contrib.auth.context_processors.auth',]
+        },
+    },
+]
+
 ALLOWED_HOSTS = ['*', ]
 
 INSTALLED_APPS = (
@@ -42,7 +53,7 @@ DATABASES = {
     }
 }
 
-LANGUAGE_CODE = 'ru-ru'
+LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'UTC'
 
@@ -57,4 +68,7 @@ STATIC_URL = '/static/'
 AUTH_USER_MODEL = 'test_app.TestUser'
 PROTECTOR_GENERIC_GROUP = 'test_app.TestGroup'
 
-AUTHENTICATION_BACKENDS=('protector.backends.GenericPermissionBackend',)
+AUTHENTICATION_BACKENDS = (
+    'application.backends.TestBackend',
+    # 'django.contrib.auth.backends.ModelBackend',
+)
