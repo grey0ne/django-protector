@@ -438,16 +438,18 @@ class Restricted(models.Model):
 
     def generate_restriction(self):
         parent_object = self.get_parent_object()
-        self_restriction, created = Restriction.objects.get_or_create(
-            object_id=self.pk, content_type=ContentType.objects.get_for_model(self)
-        )
         if parent_object is not None and isinstance(parent_object, Restricted):
             parent_restriction = Restriction.objects.get(
                 object_id=parent_object.id,
                 content_type=ContentType.objects.get_for_model(parent_object)
             )
-            self_restriction.parent = parent_restriction
-            self_restriction.save()
+        else:
+            parent_restriction = None
+        self_restriction, created = Restriction.objects.get_or_create(
+            object_id=self.pk,
+            content_type=ContentType.objects.get_for_model(self),
+            defaults={'parent': parent_restriction}
+        )
 
     def save(self, *args, **kwargs):
         created = self.pk is None
@@ -475,8 +477,8 @@ class Restricted(models.Model):
 
 class PermissionInfo(models.Model):
     permission = models.OneToOneField(to=Permission, related_name='info')
-    description = models.TextField(verbose_name='description', blank=True, null=True)
-    
+    description = models.TextField(verbose_name=_('description'), blank=True, null=True)
+
     class Meta:
-        verbose_name = 'Permission Info'
-        verbose_name_plural = 'Permissions Info'
+        verbose_name = _('permission info')
+        verbose_name_plural = _('permissions info')
