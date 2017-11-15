@@ -5,8 +5,10 @@ from django.contrib.contenttypes.models import ContentType
 from django.test.utils import override_settings
 from protector.models import GenericGlobalPerm, OwnerToPermission, GenericUserToGroup
 from protector.internals import get_default_group_ctype, get_user_ctype
-from protector.helpers import get_all_permission_owners, get_permission_owners_of_type_for_object, \
-    filter_object_id_list, is_user_having_perm_on_any_object
+from protector.helpers import (
+    get_all_permission_owners, get_permission_owners_of_type_for_object,
+    filter_object_id_list, is_user_having_perm_on_any_object, check_single_permission
+)
 
 
 TestUser = get_user_model()
@@ -406,4 +408,22 @@ class GenericObjectRestrictionTest(TestCase):
         self.user.save()
         self.assertEquals(
             is_user_having_perm_on_any_object(self.user, self.permission_key), True
+        )
+
+    def test_single_permission_helper(self):
+        self.assertEquals(
+            check_single_permission(self.user, self.permission_key), False
+        )
+        self.user.permissions.add(self.permission)
+        self.assertEquals(
+            check_single_permission(self.user, self.permission_key), True
+        )
+
+    def test_single_permission_helper_on_object(self):
+        self.assertEquals(
+            check_single_permission(self.user, self.permission_key, self.group), False
+        )
+        self.user.permissions.add(self.permission, obj=self.group)
+        self.assertEquals(
+            check_single_permission(self.user, self.permission_key, self.group), True
         )

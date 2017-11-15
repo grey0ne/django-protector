@@ -144,3 +144,22 @@ def is_user_having_perm_on_any_object(user, permission):
     cursor = connection.cursor()
     cursor.execute(query)
     return len(cursor.fetchall()) > 0
+
+
+def check_single_permission(user, permission, obj=None):
+    if user.is_superuser:
+        return True
+    if obj is None:
+        return is_user_having_perm_on_any_object(user, permission)
+    perm_id = get_permission_id_by_name(permission)
+    ctype = ContentType.objects.get_for_model(obj)
+    query = "SELECT op.id FROM {permission_owners} WHERE {filter_condition} LIMIT 1"
+    query = query.format(
+        permission_owners=get_permission_owners_query(),
+        filter_condition=_generate_filter_condition(
+            user.id, perm_id, ctype.pk, obj.pk
+        )
+    )
+    cursor = connection.cursor()
+    cursor.execute(query)
+    return len(cursor.fetchall()) > 0
