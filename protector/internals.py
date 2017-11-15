@@ -81,7 +81,7 @@ def _generate_filter_condition(user_id, perm_id, ctype_id_field, obj_id_field):
         gug.user_id = {user_id!s} AND (
             (
                 op.permission_id = {perm_id!s} AND
-                op.content_type_id = {ctype_id_field!s} AND
+                (op.content_type_id = {ctype_id_field!s} OR op.content_type_id = {null_ctype!s}) AND
                 (op.object_id = {obj_id_field!s} OR op.object_id = {null_owner_id!s})
             ) OR (
                 gl.permission_id = {perm_id!s} AND
@@ -93,6 +93,7 @@ def _generate_filter_condition(user_id, perm_id, ctype_id_field, obj_id_field):
     return condition.format(
         user_id=user_id, perm_id=perm_id,
         null_owner_id=NULL_OWNER_TO_PERMISSION_OBJECT_ID,
+        null_ctype=NULL_OWNER_TO_PERMISSION_CTYPE_ID,
         obj_id_field=obj_id_field,
         ctype_id_field=ctype_id_field
     )

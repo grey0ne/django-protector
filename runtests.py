@@ -11,6 +11,6 @@ import django
 
 def runtests():
     django.setup()
-    test_runner = get_runner(settings)(verbosity=1, interactive=True)
+    test_runner = get_runner(settings)(verbosity=2, interactive=True)
     failures = test_runner.run_tests(['protector', 'test_app'])
     sys.exit(bool(failures))

@@ -157,7 +157,7 @@ def check_single_permission(user, permission, obj=None):
     query = query.format(
         permission_owners=get_permission_owners_query(),
         filter_condition=_generate_filter_condition(
-            user.id, perm_id, ctype.pk, obj.pk
+            user.id, perm_id, ctype.id, obj.id
         )
     )
     cursor = connection.cursor()

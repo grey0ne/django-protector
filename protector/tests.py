@@ -380,50 +380,50 @@ class GenericObjectRestrictionTest(TestCase):
         )
 
     def test_user_has_perm_on_any_object(self):
-        self.assertEquals(
-            is_user_having_perm_on_any_object(self.user, self.permission_key), False
+        self.assertFalse(
+            is_user_having_perm_on_any_object(self.user, self.permission_key)
         )
         self.user.permissions.add(self.permission, self.group2)
-        self.assertEquals(
-            is_user_having_perm_on_any_object(self.user, self.permission_key), True
+        self.assertTrue(
+            is_user_having_perm_on_any_object(self.user, self.permission_key)
         )
-        self.assertEquals(
-            is_user_having_perm_on_any_object(self.user, self.permission2_key), False
+        self.assertFalse(
+            is_user_having_perm_on_any_object(self.user, self.permission2_key)
         )
         self.user.permissions.add(self.permission, self.group2)
         self.user.permissions.remove(self.permission, self.group2)
-        self.assertEquals(
-            is_user_having_perm_on_any_object(self.user, self.permission_key), False
+        self.assertFalse(
+            is_user_having_perm_on_any_object(self.user, self.permission_key)
         )
         self.user.permissions.add(self.permission)
-        self.assertEquals(
-            is_user_having_perm_on_any_object(self.user, self.permission_key), True
+        self.assertTrue(
+            is_user_having_perm_on_any_object(self.user, self.permission_key)
         )
 
     def test_superuser_has_perm_on_any_object(self):
-        self.assertEquals(
-            is_user_having_perm_on_any_object(self.user, self.permission_key), False
+        self.assertFalse(
+            is_user_having_perm_on_any_object(self.user, self.permission_key)
         )
         self.user.is_superuser = True
         self.user.save()
-        self.assertEquals(
-            is_user_having_perm_on_any_object(self.user, self.permission_key), True
+        self.assertTrue(
+            is_user_having_perm_on_any_object(self.user, self.permission_key)
         )
 
-    def test_single_permission_helper(self):
-        self.assertEquals(
-            check_single_permission(self.user, self.permission_key), False
+    def test_single_permission_helper_global(self):
+        self.assertFalse(
+            check_single_permission(self.user, self.permission_key, self.group)
         )
         self.user.permissions.add(self.permission)
-        self.assertEquals(
-            check_single_permission(self.user, self.permission_key), True
+        self.assertTrue(
+            check_single_permission(self.user, self.permission_key, self.group)
         )
 
     def test_single_permission_helper_on_object(self):
-        self.assertEquals(
-            check_single_permission(self.user, self.permission_key, self.group), False
+        self.assertFalse(
+            check_single_permission(self.user, self.permission_key, self.group)
         )
         self.user.permissions.add(self.permission, obj=self.group)
-        self.assertEquals(
-            check_single_permission(self.user, self.permission_key, self.group), True
+        self.assertTrue(
+            check_single_permission(self.user, self.permission_key, self.group)
         )
