@@ -427,3 +427,8 @@ class GenericObjectRestrictionTest(TestCase):
         self.assertTrue(
             check_single_permission(self.user, self.permission_key, self.group)
         )
+    
+    def test_non_existing_permission(self):
+        self.assertFalse(
+            check_single_permission(self.user, 'not.exist', self.group)
+        )

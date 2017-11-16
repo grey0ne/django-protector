@@ -152,6 +152,8 @@ def check_single_permission(user, permission, obj=None):
     if obj is None:
         return is_user_having_perm_on_any_object(user, permission)
     perm_id = get_permission_id_by_name(permission)
+    if perm_id is None:
+        return False
     ctype = ContentType.objects.get_for_model(obj)
     query = "SELECT op.id FROM {permission_owners} WHERE {filter_condition} LIMIT 1"
     query = query.format(
