@@ -432,3 +432,6 @@ class GenericObjectRestrictionTest(TestCase):
         self.assertFalse(
             check_single_permission(self.user, 'not.exist', self.group)
         )
+        self.assertFalse(
+            check_single_permission(self.user, 'not.exist')
+        )

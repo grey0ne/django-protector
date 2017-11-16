@@ -131,6 +131,8 @@ def is_user_having_perm_on_any_object(user, permission):
     if user.is_superuser:
         return True
     perm_id = get_permission_id_by_name(permission)
+    if perm_id is None:
+        return False
     query = """
         SELECT op.id FROM {permission_owners}
         WHERE op.permission_id = {permission_id} AND gug.user_id = {user_id}
