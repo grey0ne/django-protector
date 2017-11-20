@@ -1,3 +1,3 @@
 __author__ = 'Sergey Lihobabin'
-__version__ = '0.4.18'
+__version__ = '0.4.19'
 default_app_config = 'protector.apps.ProtectorConfig'
