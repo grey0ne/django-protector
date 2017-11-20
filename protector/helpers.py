@@ -5,8 +5,11 @@ from django.core.cache import cache
 from django.db import connection
 from django.apps import apps
 from protector.query import Query
-from protector.internals import get_permission_owners_query, _generate_filter_condition, \
-    _get_permission_filter, VIEW_RESTRICTED_OBJECTS, _get_permissions_query
+from protector.internals import (
+    get_permission_owners_query, _generate_filter_condition,
+    _get_permission_filter, VIEW_RESTRICTED_OBJECTS, _get_permissions_query,
+    NULL_OWNER_TO_PERMISSION_CTYPE_ID, NULL_OWNER_TO_PERMISSION_OBJECT_ID
+)
 
 
 _view_perm = None
@@ -151,17 +154,20 @@ def is_user_having_perm_on_any_object(user, permission):
 def check_single_permission(user, permission, obj=None):
     if user.is_superuser:
         return True
-    if obj is None:
-        return is_user_having_perm_on_any_object(user, permission)
+    if obj is not None:
+        ctype_id = ContentType.objects.get_for_model(obj).id
+        obj_id = obj.id
+    else:
+        ctype_id = NULL_OWNER_TO_PERMISSION_CTYPE_ID
+        obj_id = NULL_OWNER_TO_PERMISSION_OBJECT_ID
     perm_id = get_permission_id_by_name(permission)
     if perm_id is None:
         return False
-    ctype = ContentType.objects.get_for_model(obj)
     query = "SELECT op.id FROM {permission_owners} WHERE {filter_condition} LIMIT 1"
     query = query.format(
         permission_owners=get_permission_owners_query(),
         filter_condition=_generate_filter_condition(
-            user.id, perm_id, ctype.id, obj.id
+            user.id, perm_id, ctype_id, obj_id
         )
     )
     cursor = connection.cursor()
