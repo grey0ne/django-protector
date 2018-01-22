@@ -154,7 +154,7 @@ def is_user_having_perm_on_any_object(user, permission):
 def check_single_permission(user, permission, obj=None):
     if user.is_superuser:
         return True
-    if obj is not None:
+    if obj is not None and obj.id is not None:
         ctype_id = ContentType.objects.get_for_model(obj).id
         obj_id = obj.id
     else:
