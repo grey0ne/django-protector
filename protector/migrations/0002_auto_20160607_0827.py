@@ -14,17 +14,17 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='genericglobalperm',
             name='content_type',
-            field=models.ForeignKey(related_name='global_perms', default=1, verbose_name='content type', to='contenttypes.ContentType'),
+            field=models.ForeignKey(related_name='global_perms', default=1, verbose_name='content type', to='contenttypes.ContentType', on_delete=models.CASCADE),
         ),
         migrations.AlterField(
             model_name='genericglobalperm',
             name='permission',
-            field=models.ForeignKey(verbose_name='permission', to='auth.Permission'),
+            field=models.ForeignKey(verbose_name='permission', to='auth.Permission', on_delete=models.CASCADE),
         ),
         migrations.AlterField(
             model_name='genericusertogroup',
             name='group_content_type',
-            field=models.ForeignKey(verbose_name='group content type', to='contenttypes.ContentType'),
+            field=models.ForeignKey(verbose_name='group content type', to='contenttypes.ContentType', on_delete=models.CASCADE),
         ),
         migrations.AlterField(
             model_name='genericusertogroup',
@@ -34,7 +34,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='restriction',
             name='content_type',
-            field=models.ForeignKey(verbose_name='content type', to='contenttypes.ContentType'),
+            field=models.ForeignKey(verbose_name='content type', to='contenttypes.ContentType', on_delete=models.CASCADE),
         ),
         migrations.AlterField(
             model_name='restriction',

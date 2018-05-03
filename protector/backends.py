@@ -27,7 +27,7 @@ def get_cache_field_name(obj=None):
 class GenericPermissionBackend(object):
 
     def get_all_permissions(self, user_obj, obj=None):
-        if not user_obj.is_active or user_obj.is_anonymous():
+        if not user_obj.is_active or user_obj.is_anonymous:
             return set()
         disable_cache = getattr(settings, 'DISABLE_GENERIC_PERMISSION_CACHE', False)
         if user_obj.is_superuser:
@@ -45,7 +45,7 @@ class GenericPermissionBackend(object):
         return getattr(user_obj, cache_field_name)
 
     def has_perm(self, user_obj, perm, obj=None):
-        if not user_obj.is_active or user_obj.is_anonymous():
+        if not user_obj.is_active or user_obj.is_anonymous:
             return False
         disable_cache = getattr(settings, 'DISABLE_GENERIC_PERMISSION_CACHE', False)
         cache_field_name = get_cache_field_name(obj) + '_dict'
