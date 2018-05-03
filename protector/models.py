@@ -488,7 +488,7 @@ class Restricted(models.Model):
 
 
 class PermissionInfo(models.Model):
-    permission = models.OneToOneField(to=Permission, related_name='info')
+    permission = models.OneToOneField(to=Permission, related_name='info', on_delete=models.CASCADE)
     description = models.TextField(verbose_name=_('description'), blank=True, null=True)
 
     class Meta:
