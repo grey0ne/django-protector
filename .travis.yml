@@ -1,13 +1,26 @@
 language: python
 python:
-  - "2.7"
-  - "3.6"
+  - 2.7
+  - 3.6
 env:
-  - DJANGO=1.8.18
-  - DJANGO=1.11.4
+  matrix:
+    - DJANGO_VERSION='Django>=1.11,<2.0'
+    - DJANGO_VERSION='Django>=2.0,<2.1'
 install:
   - pip install -q -r requirements.txt
   - pip install coveralls
+matrix:
+  include:
+    - python: 2.7
+      env: DJANGO_VERSION='Django>=1.11,<2.0'
+    - python: 3.6
+      env: DJANGO_VERSION='Django>=1.11,<2.0'
+    - python: 3.6
+      env: DJANGO_VERSION='Django>=2.0,<2.1'
+  exclude:
+    - python: 2.7
+      env: DJANGO_VERSION='Django>=2.0,<2.1'
+  fast_finish: true
 script:
   coverage run --source=protector setup.py test
 after_success:
