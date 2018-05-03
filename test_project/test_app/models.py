@@ -50,7 +50,7 @@ class TestPost(AbstractGenericGroup):
         (SUBSCRIBER, 'Subscriber'),
         (AUTHOR, 'Author')
     )
-    author = models.ForeignKey(to=TestUser)
+    author = models.ForeignKey(to=TestUser, on_delete=models.CASCADE)
 
     MEMBER_FOREIGN_KEY_FIELDS = (
         ('author', AUTHOR),
