@@ -30,10 +30,13 @@ class GenericGlobalPerm(models.Model):
     """
     content_type = models.ForeignKey(
         ContentType, related_name='global_perms',
-        default=NULL_OWNER_TO_PERMISSION_CTYPE_ID, verbose_name=_('content type')
+        default=NULL_OWNER_TO_PERMISSION_CTYPE_ID, verbose_name=_('content type'),
+        on_delete=models.CASCADE
     )
     roles = models.IntegerField(verbose_name=_('roles'), default=DEFAULT_ROLE)
-    permission = models.ForeignKey(to=Permission, verbose_name=_('permission'))
+    permission = models.ForeignKey(
+        to=Permission, verbose_name=_('permission'), on_delete=models.CASCADE
+    )
 
     class Meta:
         verbose_name = _('global group permission')
@@ -48,17 +51,19 @@ class GenericUserToGroup(models.Model):
         In case of multiple roles bitmasks is used
     """
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, related_name='generic_group_relations'
+        settings.AUTH_USER_MODEL, related_name='generic_group_relations', on_delete=models.CASCADE
     )
     roles = models.IntegerField(verbose_name=_('roles'), blank=True, null=True)
     group_id = models.PositiveIntegerField(verbose_name=_('group id'))
-    group_content_type = models.ForeignKey(verbose_name=_('group content type'), to=ContentType)
+    group_content_type = models.ForeignKey(
+        verbose_name=_('group content type'), to=ContentType, on_delete=models.CASCADE
+    )
     group = GenericForeignKey('group_content_type', 'group_id')
     date_joined = models.DateTimeField(verbose_name=_('date joined'), auto_now_add=True)
     responsible = models.ForeignKey(
         verbose_name=_('responsible'),
         to=settings.AUTH_USER_MODEL, related_name='created_group_relations',
-        blank=True, null=True
+        blank=True, null=True, on_delete=models.SET_NULL
     )
 
     objects = GenericUserToGroupManager()
@@ -90,24 +95,28 @@ class OwnerToPermission(models.Model):
     content_type = models.ForeignKey(
         verbose_name=_('object type'),
         to=ContentType, related_name='restriction_group_relations',
-        default=NULL_OWNER_TO_PERMISSION_CTYPE_ID
+        default=NULL_OWNER_TO_PERMISSION_CTYPE_ID,
+        on_delete=models.CASCADE
     )
     content_object = GenericForeignKey('content_type', 'object_id')
     owner_object_id = models.PositiveIntegerField(verbose_name=_('owner id'))
     owner_content_type = models.ForeignKey(
         verbose_name=_('owner type'),
-        to=ContentType, related_name='restricted_object_relations'
+        to=ContentType, related_name='restricted_object_relations',
+        on_delete=models.CASCADE
     )
     owner = GenericForeignKey('owner_content_type', 'owner_object_id')
     permission = models.ForeignKey(
         verbose_name=_('permission'),
-        to=Permission, related_name='generic_restriction_relations'
+        to=Permission, related_name='generic_restriction_relations',
+        on_delete=models.CASCADE
     )
     date_issued = models.DateTimeField(verbose_name=_('date issued'), auto_now_add=True)
     responsible = models.ForeignKey(
         verbose_name=_('responsible'),
         to=settings.AUTH_USER_MODEL, related_name='created_permission_relations',
-        blank=True, null=True
+        blank=True, null=True,
+        on_delete=models.SET_NULL
     )
     roles = models.IntegerField(verbose_name=_('roles'), default=DEFAULT_ROLE)
 
@@ -315,13 +324,15 @@ class Restriction(MPTTModel, models.Model):
     """
     object_id = models.PositiveIntegerField(verbose_name=_('object id'), blank=False, null=False)
     content_type = models.ForeignKey(
-        to=ContentType, verbose_name=_('content type'), blank=False, null=False
+        to=ContentType, verbose_name=_('content type'), blank=False, null=False,
+        on_delete=models.CASCADE
     )
     restricted_object = GenericForeignKey('content_type', 'object_id')
 
     parent = TreeForeignKey(
         'self', verbose_name=_('parent object'),
-        null=True, blank=True, related_name='children'
+        null=True, blank=True, related_name='children',
+        on_delete=models.SET_NULL
     )
 
     class Meta:
@@ -348,7 +359,8 @@ class Restricted(models.Model):
     )
     restriction_content_type = models.ForeignKey(
         verbose_name=_('restriction content type id'),
-        to=ContentType, blank=True, null=True, related_name="%(app_label)s_%(class)s_restrictions"
+        to=ContentType, blank=True, null=True, related_name="%(app_label)s_%(class)s_restrictions",
+        on_delete=models.SET_NULL
     )
     restriction = GenericForeignKey('restriction_content_type', 'restriction_id')
 
