@@ -148,6 +148,9 @@ class GenericObjectRestrictionTest(TestCase):
         self.assertEquals(
             self.group.users.by_role(roles=ROLE2+ROLE3).count(), 2
         )
+        self.assertEquals(
+            self.group.get_roles(self.user3), [ROLE3]
+        )
 
     def test_content_type_perm(self):
         DEFAULT = 1

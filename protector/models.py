@@ -210,20 +210,6 @@ class UserGenericPermsMixin(GenericPermsMixin):
     class Meta:
         abstract = True
 
-    def get_group_permissions(self, obj=None):
-        permissions = set()
-        for backend in auth.get_backends():
-            if hasattr(backend, "get_group_permissions"):
-                permissions.update(backend.get_group_permissions(self, obj))
-        return permissions
-
-    def get_all_permissions(self, obj=None):
-        permissions = set()
-        for backend in auth.get_backends():
-            if hasattr(backend, "get_all_permissions"):
-                permissions.update(backend.get_all_permissions(self, obj))
-        return permissions
-
     def has_perm(self, perm, obj=None):
         if self.is_active and self.is_superuser:
             return True
@@ -315,7 +301,17 @@ class AbstractGenericGroup(GenericPermsMixin):
         except GenericUserToGroup.DoesNotExist:
             return []
         else:
-            return [role[0] for role in self.ROLES if role[0] & user_roles]
+            return get_roles_from_mask(user_roles)
+
+
+def get_roles_from_mask(mask):
+    counter = 0
+    result = []
+    for val in reversed(bin(mask)[2:]):
+        if int(val) == 1:
+            result.append(pow(2,counter))
+        counter+= 1
+    return result
 
 
 class Restriction(MPTTModel, models.Model):
