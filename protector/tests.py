@@ -234,26 +234,6 @@ class GenericObjectRestrictionTest(TestCase):
             owners.count(), 1
         )
 
-    def test_ctype_permission(self):
-        groups = self.TestGroup.objects.visible(self.user2)
-        self.assertFalse(
-            self.user2.has_perm(self.TestGroup.VIEW_PERMISSION_NAME, self.group2)
-        )
-        self.assertEquals(
-            groups.count(), 1
-        )
-        OwnerToPermission.objects.create(
-            owner=self.user2,
-            content_type=ContentType.objects.get_for_model(self.TestGroup),
-            permission=self.TestGroup.get_view_permission(),
-        )
-        self.assertEquals(
-            groups.count(), 2
-        )
-        self.assertTrue(
-            self.user2.has_perm(self.TestGroup.VIEW_PERMISSION_NAME, self.group2)
-        )
-
     def test_superuser(self):
         groups = self.TestGroup.objects.visible(self.user2)
         self.assertFalse(

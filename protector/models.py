@@ -8,8 +8,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericRelation, GenericForeignKey
 from django.utils.translation import ugettext_lazy as _
 from mptt.models import MPTTModel, TreeForeignKey
-from protector.internals import NULL_OWNER_TO_PERMISSION_CTYPE_ID, \
-    NULL_OWNER_TO_PERMISSION_OBJECT_ID, DEFAULT_ROLE, \
+from protector.internals import DEFAULT_ROLE, \
     ADD_PERMISSION_PERMISSION, VIEW_RESTRICTED_OBJECTS, \
     VIEW_PERMISSION_NAME, get_user_ctype
 from protector.helpers import get_view_permission
@@ -29,9 +28,8 @@ class GenericGlobalPerm(models.Model):
         e.g. Every blog moderator could edit his blog
     """
     content_type = models.ForeignKey(
-        ContentType, related_name='global_perms',
-        default=NULL_OWNER_TO_PERMISSION_CTYPE_ID, verbose_name=_('content type'),
-        on_delete=models.CASCADE
+        ContentType, related_name='global_perms', verbose_name=_('content type'),
+        on_delete=models.CASCADE, null=True
     )
     roles = models.IntegerField(verbose_name=_('roles'), default=DEFAULT_ROLE)
     permission = models.ForeignKey(
@@ -89,13 +87,12 @@ class OwnerToPermission(models.Model):
     """
     ADD_PERMISSION = ADD_PERMISSION_PERMISSION
     object_id = models.PositiveIntegerField(
-        verbose_name=_('object id'),
-        default=NULL_OWNER_TO_PERMISSION_OBJECT_ID
+        verbose_name=_('object id'), null=True
     )
     content_type = models.ForeignKey(
         verbose_name=_('object type'),
         to=ContentType, related_name='restriction_group_relations',
-        default=NULL_OWNER_TO_PERMISSION_CTYPE_ID,
+        null=True,
         on_delete=models.CASCADE
     )
     content_object = GenericForeignKey('content_type', 'object_id')
@@ -140,7 +137,7 @@ class OwnerToPermission(models.Model):
         )
 
     def __unicode__(self):
-        if self.object_id == 0:
+        if self.object_id is None:
             ctype = None
         else:
             ctype = self.content_type
@@ -149,7 +146,7 @@ class OwnerToPermission(models.Model):
             model=self.owner_content_type.model,
             pk=self.owner_object_id,
         )
-        if self.object_id != 0:  # real object not global permission
+        if self.object_id is not None:  # real object not global permission
             result += "- {app}.{model}.{pk}. ".format(
                 app=ctype.app_label if ctype else '',
                 model=ctype.model if ctype else '',
@@ -309,8 +306,8 @@ def get_roles_from_mask(mask):
     result = []
     for val in reversed(bin(mask)[2:]):
         if int(val) == 1:
-            result.append(pow(2,counter))
-        counter+= 1
+            result.append(pow(2, counter))
+        counter += 1
     return result
 
 

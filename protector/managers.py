@@ -4,8 +4,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth import get_user_model
 from protector.querysets import GenericUserToGroupQuerySet, PermissionQuerySet, \
     RestrictedQuerySet, OwnerToPermissionQuerySet, GenericGroupQuerySet
-from protector.internals import get_default_group_ctype, DEFAULT_ROLE, \
-    NULL_OWNER_TO_PERMISSION_OBJECT_ID, NULL_OWNER_TO_PERMISSION_CTYPE_ID
+from protector.internals import get_default_group_ctype, DEFAULT_ROLE
 from protector.helpers import get_permission_id_by_name
 from past.builtins import basestring
 
@@ -164,10 +163,8 @@ class OwnerPermissionManager(models.Manager):
             kwargs['object_id'] = obj.pk
             kwargs['content_type'] = ContentType.objects.get_for_model(obj)
         else:
-            kwargs['object_id'] = NULL_OWNER_TO_PERMISSION_OBJECT_ID
-            kwargs['content_type'] = ContentType.objects.get_for_id(
-                NULL_OWNER_TO_PERMISSION_CTYPE_ID
-            )
+            kwargs['object_id'] = None
+            kwargs['content_type'] = None
 
         OwnerToPermission = apps.get_model('protector', 'OwnerToPermission')
         otp, created = OwnerToPermission.objects.get_or_create(
@@ -179,8 +176,8 @@ class OwnerPermissionManager(models.Manager):
 
     def remove(self, perm, obj=None, roles=None):
         if obj is None:
-            obj_id = NULL_OWNER_TO_PERMISSION_OBJECT_ID
-            obj_ctype_id = NULL_OWNER_TO_PERMISSION_CTYPE_ID
+            obj_id = None
+            obj_ctype_id = None
         else:
             obj_id = obj.pk
             obj_ctype_id = ContentType.objects.get_for_model(obj)

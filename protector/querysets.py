@@ -2,8 +2,7 @@ from django.db.models.query import QuerySet
 from django.db.models import F
 from django.apps import apps
 from django.contrib.contenttypes.models import ContentType
-from protector.internals import VIEW_PERMISSION_NAME, NULL_OWNER_TO_PERMISSION_OBJECT_ID, \
-    NULL_OWNER_TO_PERMISSION_CTYPE_ID, _get_restriction_filter
+from protector.internals import VIEW_PERMISSION_NAME, _get_restriction_filter
 from protector.helpers import filter_queryset_by_permission, get_view_permission
 
 
@@ -51,8 +50,8 @@ class RestrictedQuerySet(PermissionQuerySet):
 class OwnerToPermissionQuerySet(QuerySet):
     def without_obj_perms(self):
         return self.filter(
-            object_id=NULL_OWNER_TO_PERMISSION_OBJECT_ID,
-            content_type_id=NULL_OWNER_TO_PERMISSION_CTYPE_ID
+            object_id__isnull=True,
+            content_type_id__isnull=True
         )
 
 

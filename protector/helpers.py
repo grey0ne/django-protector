@@ -8,7 +8,6 @@ from protector.query import Query
 from protector.internals import (
     get_permission_owners_query, _generate_filter_condition,
     _get_permission_filter, VIEW_RESTRICTED_OBJECTS, _get_permissions_query,
-    NULL_OWNER_TO_PERMISSION_CTYPE_ID, NULL_OWNER_TO_PERMISSION_OBJECT_ID
 )
 
 
@@ -158,8 +157,8 @@ def check_single_permission(user, permission, obj=None):
         ctype_id = ContentType.objects.get_for_model(obj).id
         obj_id = obj.id
     else:
-        ctype_id = NULL_OWNER_TO_PERMISSION_CTYPE_ID
-        obj_id = NULL_OWNER_TO_PERMISSION_OBJECT_ID
+        ctype_id = None
+        obj_id = None
     perm_id = get_permission_id_by_name(permission)
     if perm_id is None:
         return False
