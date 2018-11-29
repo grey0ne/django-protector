@@ -200,9 +200,9 @@ class UserGenericPermsMixin(GenericPermsMixin):
         help_text=_('Designates that user has all perms')
     )
 
-    def __init__(self, *args, **kwargs):
-        super(UserGenericPermsMixin, self).__init__(*args, **kwargs)
-        self.groups = UserGroupManager(self)
+    @property
+    def groups(self):
+        return UserGroupManager(self)
 
     class Meta:
         abstract = True
