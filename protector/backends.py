@@ -24,7 +24,10 @@ def get_cache_field_name(obj=None):
         )
     return cache_field_name
 
+
 class GenericPermissionBackend(object):
+    def authenticate(self, request, username=None, password=None):
+        return None
 
     def get_all_permissions(self, user_obj, obj=None):
         if not user_obj.is_active or user_obj.is_anonymous:
