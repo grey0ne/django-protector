@@ -4,15 +4,29 @@ from __future__ import unicode_literals
 
 from django.db import migrations
 
+
 def forwards_func(apps, schema_editor):
     OwnerToPermission = apps.get_model("protector", "OwnerToPermission")
-    OwnerToPermission.objects.filter(content_type_id=1).update(content_type=None)
-    OwnerToPermission.objects.filter(object_id=0).update(object_id=None)
+    # OwnerToPermission.objects.filter(content_type_id=1).update(content_type=None)
+    # OwnerToPermission.objects.filter(object_id=0).update(object_id=None)
+    OwnerToPermission.objects.filter(
+        content_type_id=1,
+        object_id=0,
+    ).update(
+        content_type=None,
+        object_id=None,
+    )
+
 
 def backwards_func(apps, schema_editor):
     OwnerToPermission = apps.get_model("protector", "OwnerToPermission")
-    OwnerToPermission.objects.filter(content_type_id__isnull=True).update(content_type=1)
-    OwnerToPermission.objects.filter(object_id__isnull=True).update(object_id=0)
+    OwnerToPermission.objects.filter(
+        content_type_id__isnull=True,
+        object_id__isnull=True,
+    ).update(
+        content_type_id=1,
+        object_id=0,
+    )
 
 
 class Migration(migrations.Migration):
