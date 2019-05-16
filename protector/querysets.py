@@ -2,6 +2,7 @@ from django.db.models.query import QuerySet
 from django.db.models import F
 from django.apps import apps
 from django.contrib.contenttypes.models import ContentType
+# from protector.models import HistoryOwnerToPermission, HistoryGenericUserToGroup
 from protector.internals import VIEW_PERMISSION_NAME, _get_restriction_filter
 from protector.helpers import filter_queryset_by_permission, get_view_permission
 
@@ -53,6 +54,27 @@ class OwnerToPermissionQuerySet(QuerySet):
             object_id__isnull=True,
             content_type_id__isnull=True
         )
+
+    def delete_with_history(self, initiator, reason):
+        HistoryOwnerToPermission = apps.get_model('protector', 'HistoryOwnerToPermission')
+        histories_to_create = list()
+
+        deleting_otps = self.values(
+            'content_type_id', 'roles', 'owner_content_type_id', 'permission_id',
+            'object_id', 'owner_object_id', 'responsible_id',
+        )
+
+        for otp in deleting_otps:
+            otp.update({
+                'initiator': initiator,
+                'reason': reason,
+                # 'change_type': HistoryOwnerToPermission.TYPE_REMOVE_PERMISSION,
+            })
+            histories_to_create.append(HistoryOwnerToPermission(**otp))
+
+        HistoryOwnerToPermission.objects.bulk_create(histories_to_create)
+
+        super(OwnerToPermissionQuerySet, self).delete()
 
 
 class PermAnnotatedMixin(QuerySet):

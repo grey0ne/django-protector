@@ -7,6 +7,8 @@ from protector.query import Query
 
 ADD_PERMISSION_PERMISSION = 'add_permission'
 VIEW_RESTRICTED_OBJECTS = 'view_restricted_objects'
+VIEW_GENERIC_GROUP_HISTORY = 'view_generic_group_history'
+VIEW_OWNER_TO_PERM_HISTORY = 'view_owner_to_perm_history'
 
 VIEW_PERMISSION_NAME = 'protector.{0}'.format(VIEW_RESTRICTED_OBJECTS)
 
@@ -14,6 +16,11 @@ VIEW_PERMISSION_NAME = 'protector.{0}'.format(VIEW_RESTRICTED_OBJECTS)
 NULL_OBJECT_CONDITION = " op.object_id IS NULL AND op.content_type_id IS NULL "
 
 DEFAULT_ROLE = 1
+
+OWNER_VALUES_TO_SAVE_FOR_HISTORY = (
+    'content_type_id', 'object_id', 'owner_content_type_id',
+    'owner_object_id', 'permission_id', 'responsible_id', 'roles',
+)
 
 
 def get_permission_owners_query():

@@ -2,15 +2,24 @@
 from django.db import models
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
+from django.core.validators import MinLengthValidator
+from django.forms.models import model_to_dict
 from django.contrib import auth
 from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericRelation, GenericForeignKey
 from django.utils.translation import ugettext_lazy as _
 from mptt.models import MPTTModel, TreeForeignKey
-from protector.internals import DEFAULT_ROLE, \
-    ADD_PERMISSION_PERMISSION, VIEW_RESTRICTED_OBJECTS, \
-    VIEW_PERMISSION_NAME, get_user_ctype
+from protector.internals import (
+    DEFAULT_ROLE,
+    ADD_PERMISSION_PERMISSION,
+    VIEW_RESTRICTED_OBJECTS,
+    VIEW_PERMISSION_NAME,
+    VIEW_GENERIC_GROUP_HISTORY,
+    VIEW_OWNER_TO_PERM_HISTORY,
+    OWNER_VALUES_TO_SAVE_FOR_HISTORY,
+    get_user_ctype,
+)
 from protector.helpers import get_view_permission
 from protector.managers import GenericUserToGroupManager, OwnerToPermissionManager, \
     OwnerPermissionManager, UserGroupManager, GroupUserManager, RestrictedManager, \
@@ -20,6 +29,106 @@ from protector.managers import GenericUserToGroupManager, OwnerToPermissionManag
 #  Form a from clause for all permission related to their owners
 #  role of user in group must not be empty
 #  if permission roles is empty than it is applied to all roles in group
+
+"""
+    Note: most related_names consisting of %(class)s were changed in migration to save old reverse-relations and
+    make it more human-readable. See migration 0007_history_added.
+    Before each field, there is a comment, pointing on how you can get reverse-relation.
+    
+    For history classes reverse-relation are almost the same, except the 'history_' prefix in the beginning
+    (e.g. if model field is 'generic_group_relations',
+    then history model reverse-relation will be 'history_generic_group_relations')
+    
+    For further development, delete all related_name 'renamings' in upcoming migrations
+"""
+
+
+class AbstractGenericUserToGroup(models.Model):
+
+    # generic_group_relations
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, related_name='%(class)s_relations', on_delete=models.CASCADE
+    )
+    roles = models.IntegerField(verbose_name=_('roles'), blank=True, null=True)
+    group_id = models.PositiveIntegerField(verbose_name=_('group id'))
+    group_content_type = models.ForeignKey(
+        verbose_name=_('group content type'), to=ContentType, on_delete=models.CASCADE
+    )
+    group = GenericForeignKey('group_content_type', 'group_id')
+
+    # created_group_relations
+    responsible = models.ForeignKey(
+        verbose_name=_('responsible'),
+        to=settings.AUTH_USER_MODEL, related_name='%(class)s_responsible',
+        blank=True, null=True, on_delete=models.SET_NULL
+    )
+
+    class Meta:
+        abstract = True
+
+
+class AbstractOwnerToPermission(models.Model):
+    object_id = models.PositiveIntegerField(
+        verbose_name=_('object id'), null=True
+    )
+
+    # restriction_group_relations
+    content_type = models.ForeignKey(
+        verbose_name=_('object type'),
+        to=ContentType, related_name='%(class)s_restriction_relations',
+        null=True,
+        on_delete=models.CASCADE
+    )
+    content_object = GenericForeignKey('content_type', 'object_id')
+
+    owner_object_id = models.PositiveIntegerField(verbose_name=_('owner id'))
+    # restricted_object_relations
+    owner_content_type = models.ForeignKey(
+        verbose_name=_('owner type'),
+        to=ContentType, related_name='%(class)s_restricted_relations',
+        on_delete=models.CASCADE
+    )
+    owner = GenericForeignKey('owner_content_type', 'owner_object_id')
+
+    # generic_restriction_relations
+    permission = models.ForeignKey(
+        verbose_name=_('permission'),
+        to=Permission, related_name='%(class)s_permission',
+        on_delete=models.CASCADE
+    )
+
+    # created_permission_relations
+    responsible = models.ForeignKey(
+        verbose_name=_('responsible'),
+        to=settings.AUTH_USER_MODEL, related_name='%(class)s_responsible',
+        blank=True, null=True,
+        on_delete=models.SET_NULL
+    )
+    roles = models.IntegerField(verbose_name=_('roles'), default=DEFAULT_ROLE)
+
+    objects = OwnerToPermissionManager()
+
+    class Meta:
+        abstract = True
+
+
+class AbstractBaseHistory(models.Model):
+    # history_generic_group_relations / history_owner_to_perm_initiator
+    initiator = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name='%(class)s_initiator',
+        on_delete=models.CASCADE
+    )
+    reason = models.TextField(
+        verbose_name=_('change reason'),
+        validators=[MinLengthValidator(1)]
+    )
+    changed_at = models.DateTimeField(
+        _('change date'), auto_now_add=True
+    )
+
+    class Meta:
+        abstract = True
 
 
 class GenericGlobalPerm(models.Model):
@@ -42,27 +151,13 @@ class GenericGlobalPerm(models.Model):
         unique_together = ('content_type', 'permission')
 
 
-class GenericUserToGroup(models.Model):
+class GenericUserToGroup(AbstractGenericUserToGroup):
     """
         This models is used for linking user to any possible group
         User can have only one link to group
         In case of multiple roles bitmasks is used
     """
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, related_name='generic_group_relations', on_delete=models.CASCADE
-    )
-    roles = models.IntegerField(verbose_name=_('roles'), blank=True, null=True)
-    group_id = models.PositiveIntegerField(verbose_name=_('group id'))
-    group_content_type = models.ForeignKey(
-        verbose_name=_('group content type'), to=ContentType, on_delete=models.CASCADE
-    )
-    group = GenericForeignKey('group_content_type', 'group_id')
     date_joined = models.DateTimeField(verbose_name=_('date joined'), auto_now_add=True)
-    responsible = models.ForeignKey(
-        verbose_name=_('responsible'),
-        to=settings.AUTH_USER_MODEL, related_name='created_group_relations',
-        blank=True, null=True, on_delete=models.SET_NULL
-    )
 
     objects = GenericUserToGroupManager()
 
@@ -80,44 +175,42 @@ class GenericUserToGroup(models.Model):
         )
 
 
-class OwnerToPermission(models.Model):
+class HistoryGenericUserToGroup(AbstractBaseHistory, AbstractGenericUserToGroup):
+    TYPE_ADD_TO_GROUP = 1
+    TYPE_REMOVE_FROM_GROUP = 2
+
+    CHANGE_TYPES = (
+        (TYPE_ADD_TO_GROUP, 'add user to group'),
+        (TYPE_REMOVE_FROM_GROUP, 'remove user from group'),
+    )
+
+    change_type = models.SmallIntegerField(
+        choices=CHANGE_TYPES, null=False, blank=False,
+    )
+
+    class Meta:
+        verbose_name = _('generic user to group history')
+        verbose_name_plural = _('generic user to group histories')
+        permissions = (
+            (VIEW_GENERIC_GROUP_HISTORY, _('view generic group history')),
+        )
+
+    def __str__(self):
+        return '{history_id} | initiated by {initiator} | {group_name} {group_id}'.format(
+            history_id=self.id,
+            initiator=self.initiator.username,
+            group_name=self.group_content_type,
+            group_id=self.group_id,
+        )
+
+
+class OwnerToPermission(AbstractOwnerToPermission):
     """
         This model is two-way generic many-to-many link from owner_object to owned object
         Multiple links from owner to object is supported i.e. different permissions
     """
     ADD_PERMISSION = ADD_PERMISSION_PERMISSION
-    object_id = models.PositiveIntegerField(
-        verbose_name=_('object id'), null=True
-    )
-    content_type = models.ForeignKey(
-        verbose_name=_('object type'),
-        to=ContentType, related_name='restriction_group_relations',
-        null=True,
-        on_delete=models.CASCADE
-    )
-    content_object = GenericForeignKey('content_type', 'object_id')
-    owner_object_id = models.PositiveIntegerField(verbose_name=_('owner id'))
-    owner_content_type = models.ForeignKey(
-        verbose_name=_('owner type'),
-        to=ContentType, related_name='restricted_object_relations',
-        on_delete=models.CASCADE
-    )
-    owner = GenericForeignKey('owner_content_type', 'owner_object_id')
-    permission = models.ForeignKey(
-        verbose_name=_('permission'),
-        to=Permission, related_name='generic_restriction_relations',
-        on_delete=models.CASCADE
-    )
     date_issued = models.DateTimeField(verbose_name=_('date issued'), auto_now_add=True)
-    responsible = models.ForeignKey(
-        verbose_name=_('responsible'),
-        to=settings.AUTH_USER_MODEL, related_name='created_permission_relations',
-        blank=True, null=True,
-        on_delete=models.SET_NULL
-    )
-    roles = models.IntegerField(verbose_name=_('roles'), default=DEFAULT_ROLE)
-
-    objects = OwnerToPermissionManager()
 
     class Meta:
         verbose_name = _('owner to permission link')
@@ -169,6 +262,48 @@ class OwnerToPermission(models.Model):
                 roles=1
             )
         super(OwnerToPermission, self).save(*args, **kwargs)
+
+    def delete(self, initiator, reason):
+        history_dict = {
+            key: value for key, value in self.__dict__.items() if key in OWNER_VALUES_TO_SAVE_FOR_HISTORY
+        }
+        history_dict.update({
+            'initiator': initiator,
+            'reason': reason,
+            'change_type': HistoryOwnerToPermission.TYPE_REMOVE_PERMISSION,
+        })
+        HistoryOwnerToPermission.objects.create(**history_dict)
+        super(OwnerToPermission, self).delete()
+
+
+class HistoryOwnerToPermission(AbstractBaseHistory, AbstractOwnerToPermission):
+    TYPE_ADD_PERMISSION = 1
+    TYPE_REMOVE_PERMISSION = 2
+
+    CHANGE_TYPES = (
+        (TYPE_ADD_PERMISSION, 'add permission'),
+        (TYPE_REMOVE_PERMISSION, 'remove permission'),
+    )
+
+    change_type = models.SmallIntegerField(
+        choices=CHANGE_TYPES, null=False, blank=False,
+    )
+
+    class Meta:
+        verbose_name = _('owner to permission history')
+        verbose_name_plural = _('owner to permission histories')
+        permissions = (
+            (VIEW_OWNER_TO_PERM_HISTORY, _('view owner to permission history')),
+        )
+
+    def __str__(self):
+        return '{history_id} | initiated by {initiator} | {group_name} {group_id} for perm {permission}'.format(
+            history_id=self.id,
+            initiator=self.initiator.username,
+            group_name=self.owner_content_type,
+            group_id=self.owner_object_id,
+            permission=self.permission.codename if self.permission else '',
+        )
 
 
 class GenericPermsMixin(models.Model):
