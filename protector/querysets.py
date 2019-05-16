@@ -55,7 +55,7 @@ class OwnerToPermissionQuerySet(QuerySet):
             content_type_id__isnull=True
         )
 
-    def delete_with_history(self, initiator, reason):
+    def delete(self, initiator, reason):
         HistoryOwnerToPermission = apps.get_model('protector', 'HistoryOwnerToPermission')
         histories_to_create = list()
 

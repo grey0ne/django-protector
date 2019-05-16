@@ -30,24 +30,10 @@ from protector.managers import GenericUserToGroupManager, OwnerToPermissionManag
 #  role of user in group must not be empty
 #  if permission roles is empty than it is applied to all roles in group
 
-"""
-    Note: most related_names consisting of %(class)s were changed in migration to save old reverse-relations and
-    make it more human-readable. See migration 0007_history_added.
-    Before each field, there is a comment, pointing on how you can get reverse-relation.
-    
-    For history classes reverse-relation are almost the same, except the 'history_' prefix in the beginning
-    (e.g. if model field is 'generic_group_relations',
-    then history model reverse-relation will be 'history_generic_group_relations')
-    
-    For further development, delete all related_name 'renamings' in upcoming migrations
-"""
-
 
 class AbstractGenericUserToGroup(models.Model):
-
-    # generic_group_relations
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, related_name='%(class)s_relations', on_delete=models.CASCADE
+        settings.AUTH_USER_MODEL, related_name='%(class)s_generic_user_relations', on_delete=models.CASCADE
     )
     roles = models.IntegerField(verbose_name=_('roles'), blank=True, null=True)
     group_id = models.PositiveIntegerField(verbose_name=_('group id'))
@@ -56,10 +42,9 @@ class AbstractGenericUserToGroup(models.Model):
     )
     group = GenericForeignKey('group_content_type', 'group_id')
 
-    # created_group_relations
     responsible = models.ForeignKey(
         verbose_name=_('responsible'),
-        to=settings.AUTH_USER_MODEL, related_name='%(class)s_responsible',
+        to=settings.AUTH_USER_MODEL, related_name='%(class)s_created_group_relations',
         blank=True, null=True, on_delete=models.SET_NULL
     )
 
@@ -71,33 +56,27 @@ class AbstractOwnerToPermission(models.Model):
     object_id = models.PositiveIntegerField(
         verbose_name=_('object id'), null=True
     )
-
-    # restriction_group_relations
     content_type = models.ForeignKey(
         verbose_name=_('object type'),
-        to=ContentType, related_name='%(class)s_restriction_relations',
+        to=ContentType, related_name='%(class)s_restriction_group_relations',
         null=True,
         on_delete=models.CASCADE
     )
     content_object = GenericForeignKey('content_type', 'object_id')
 
     owner_object_id = models.PositiveIntegerField(verbose_name=_('owner id'))
-    # restricted_object_relations
     owner_content_type = models.ForeignKey(
         verbose_name=_('owner type'),
-        to=ContentType, related_name='%(class)s_restricted_relations',
+        to=ContentType, related_name='%(class)s_restricted_object_relations',
         on_delete=models.CASCADE
     )
     owner = GenericForeignKey('owner_content_type', 'owner_object_id')
 
-    # generic_restriction_relations
     permission = models.ForeignKey(
         verbose_name=_('permission'),
-        to=Permission, related_name='%(class)s_permission',
+        to=Permission, related_name='%(class)s_generic_restriction_relations',
         on_delete=models.CASCADE
     )
-
-    # created_permission_relations
     responsible = models.ForeignKey(
         verbose_name=_('responsible'),
         to=settings.AUTH_USER_MODEL, related_name='%(class)s_responsible',
@@ -113,7 +92,6 @@ class AbstractOwnerToPermission(models.Model):
 
 
 class AbstractBaseHistory(models.Model):
-    # history_generic_group_relations / history_owner_to_perm_initiator
     initiator = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         related_name='%(class)s_initiator',
@@ -268,10 +246,11 @@ class OwnerToPermission(AbstractOwnerToPermission):
             key: value for key, value in self.__dict__.items() if key in OWNER_VALUES_TO_SAVE_FOR_HISTORY
         }
         history_dict.update({
-            'initiator': initiator,
+            'initiator_id': initiator.id,
             'reason': reason,
             'change_type': HistoryOwnerToPermission.TYPE_REMOVE_PERMISSION,
         })
+        print(history_dict)
         HistoryOwnerToPermission.objects.create(**history_dict)
         super(OwnerToPermission, self).delete()
 
