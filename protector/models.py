@@ -340,7 +340,8 @@ class UserGenericPermsMixin(GenericPermsMixin):
     def has_perm(self, perm, obj=None):
         if self.is_active and self.is_superuser:
             return True
-
+        # import pdb
+        # pdb.set_trace()
         for backend in auth.get_backends():
             if not hasattr(backend, 'has_perm'):
                 continue

@@ -58,6 +58,7 @@ class GenericPermissionBackend(object):
         if perm not in perm_dict or disable_cache:
             check_result = check_single_permission(user_obj, perm, obj)
             perm_dict[perm] = check_result
+        print(perm_dict)
         return perm_dict[perm]
 
     def has_module_perms(self, user_obj, app_label):

@@ -96,8 +96,6 @@ class GenericObjectRestrictionTest(TestCase):
             SOME_REASON,
             self.user2,
         )
-        import pdb
-        pdb.set_trace()
         self.assertTrue(
             self.user2.has_perm(self.permission_key, self.user)
         )
