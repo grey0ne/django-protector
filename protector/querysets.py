@@ -10,6 +10,7 @@ from protector.internals import (
     OWNER_VALUES_TO_SAVE_FOR_HISTORY,
     GENERIC_GROUP_VALUES_TO_SAVE_FOR_HISTORY,
     _get_restriction_filter,
+    get_user_ctype,
 )
 from protector.helpers import filter_queryset_by_permission, get_view_permission
 
@@ -98,8 +99,53 @@ class HistorySavingBaseQuerySet(QuerySet):
         except KeyError:
             pass
 
-        super(HistorySavingBaseQuerySet, self).create(**kwargs)
+        created_obj = super(HistorySavingBaseQuerySet, self).create(**kwargs)
         self.history_model.objects.create(**history_kwargs)
+
+        user_ctype = get_user_ctype()
+        if 'owner_content_type' in kwargs and kwargs['owner_content_type'] == user_ctype\
+                or 'owner_content_type_id' in kwargs and kwargs['owner_content_type_id'] == user_ctype.id:
+            # Here is a bit of denormalization
+            # User is a part of group of his own
+            # This is done to drastically improve perm checking performance
+            GenericUserToGroup = apps.get_model('protector', 'GenericUserToGroup')
+            GenericUserToGroup.objects.get_or_create(
+                reason=history_kwargs['reason'],
+                initiator_id=history_kwargs['initiator'].id\
+                    if 'initiator' in history_kwargs else history_kwargs['initiator_id'],
+                group_id=kwargs['owner_object_id'],
+                group_content_type_id=kwargs['owner_content_type'].id\
+                    if 'owner_content_type' in kwargs else kwargs['owner_content_type_id'],
+                user_id=kwargs['owner_object_id'],
+                roles=1
+            )
+
+        return created_obj
+
+    def get_or_create(self, defaults=None, **kwargs):
+        if 'initiator_id' not in kwargs and 'initiator' not in kwargs:
+            raise ValidationError(u'Indicate initiator in case creation occurs')
+        if 'reason' not in kwargs:
+            raise ValidationError(u'Point out the reason in case creation occurs')
+
+        get_kwargs = deepcopy(kwargs)
+        try:
+            del get_kwargs['reason']
+            if 'initiator_id' in kwargs:
+                del get_kwargs['initiator_id']
+            elif 'initiator' in kwargs:
+                del get_kwargs['initiator']
+        except KeyError:
+            pass
+
+        try:
+            result = super(HistorySavingBaseQuerySet, self).get_or_create(defaults=defaults, **get_kwargs)
+        except ValidationError:
+            # in case there's no such record in db, create will raise Validation error
+            # due to absence of initiator and reason fields.
+            # Here we explicitly create new record with such fields.
+            result = self.create(**kwargs)
+        return (result, True) if not isinstance(result, tuple) else result
 
 
 class GenericUserToGroupQuerySet(HistorySavingBaseQuerySet):

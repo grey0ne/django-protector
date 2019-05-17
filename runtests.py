@@ -14,3 +14,7 @@ def runtests():
     test_runner = get_runner(settings)(verbosity=2, interactive=True)
     failures = test_runner.run_tests(['protector', 'test_app'])
     sys.exit(bool(failures))
+
+
+if __name__ == '__main__':
+    runtests()

@@ -253,20 +253,6 @@ class OwnerToPermission(AbstractOwnerToPermission):
         else:
             super(OwnerToPermission, self).__init__(*args, **kwargs)
 
-    def save(self, *args, **kwargs):
-        if self.owner_content_type == get_user_ctype():
-            # Here is a bit of denormalization
-            # User is a part of group of his own
-            # This is done to drastically improve perm checking performance
-            GenericUserToGroup.objects.get_or_create(
-                group_id=self.owner_object_id,
-                group_content_type=self.owner_content_type,
-                user_id=self.owner_object_id,
-                roles=1
-            )
-
-        super(OwnerToPermission, self).save(*args, **kwargs)
-
     def delete(self, initiator, reason):
         if not isinstance(initiator, get_user_model()):
             raise ValidationError('Initiator should be an instance of User model')

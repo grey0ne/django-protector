@@ -3,7 +3,13 @@ from django.contrib.auth.models import Permission
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.test.utils import override_settings
-from protector.models import GenericGlobalPerm, OwnerToPermission, GenericUserToGroup
+from protector.models import (
+    GenericGlobalPerm,
+    OwnerToPermission,
+    HistoryOwnerToPermission,
+    GenericUserToGroup,
+    HistoryGenericUserToGroup,
+)
 from protector.internals import get_default_group_ctype, get_user_ctype
 from protector.helpers import (
     get_all_permission_owners, get_permission_owners_of_type_for_object,
@@ -12,6 +18,7 @@ from protector.helpers import (
 
 
 TestUser = get_user_model()
+SOME_REASON = 'some reason'
 
 
 @override_settings(
@@ -40,37 +47,66 @@ class GenericObjectRestrictionTest(TestCase):
         )
         self.group2.restrict()
         self.group2.save()
+        self.HistoryOwnerToPermission = HistoryOwnerToPermission
+        self.HistoryGenericUserToGroup = HistoryGenericUserToGroup
 
     def test_object_perm(self):
         self.assertFalse(
             self.user.has_perm(self.permission_key, self.user2)
         )
         self.user.permissions.add(
-            self.permission, self.user2
+            self.permission,
+            self.user,
+            SOME_REASON,
+            self.user2
         )
         self.assertTrue(
             self.user.has_perm(self.permission_key, self.user2)
         )
+        self.assertEqual(self.HistoryOwnerToPermission.objects.count(), 1)
+        self.assertEqual(self.HistoryGenericUserToGroup.objects.count(), 1)
 
     def test_object_global_perm(self):
         self.assertFalse(
             self.user.has_perm(self.permission_key, self.user2)
         )
-        self.user.permissions.add(self.permission)
+        self.user.permissions.add(
+            self.permission,
+            self.user,
+            SOME_REASON,
+        )
         self.assertTrue(
             self.user.has_perm(self.permission_key, self.user2)
         )
+        self.assertEqual(self.HistoryOwnerToPermission.objects.count(), 1)
+        self.assertEqual(self.HistoryGenericUserToGroup.objects.count(), 1)
 
     def test_object_group_perm_add_remove(self):
         self.assertFalse(
             self.user2.has_perm(self.permission_key, self.user)
         )
-        self.group.permissions.add(self.permission, self.user)
-        self.group.users.add(self.user2)
+        self.group.permissions.add(
+            self.permission,
+            self.user2,
+            SOME_REASON,
+            self.user,
+        )
+        self.group.users.add(
+            self.user,
+            SOME_REASON,
+            self.user2,
+        )
+        import pdb
+        pdb.set_trace()
         self.assertTrue(
             self.user2.has_perm(self.permission_key, self.user)
         )
-        self.group.permissions.remove(self.permission, self.user)
+        self.group.permissions.remove(
+            self.permission,
+            self.user2,
+            SOME_REASON,
+            self.user,
+        )
         self.assertFalse(
             self.user2.has_perm(self.permission_key, self.user)
         )
