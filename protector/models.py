@@ -19,12 +19,17 @@ from protector.internals import (
     VIEW_OWNER_TO_PERM_HISTORY,
     OWNER_VALUES_TO_SAVE_FOR_HISTORY,
     GENERIC_GROUP_VALUES_TO_SAVE_FOR_HISTORY,
-    get_user_ctype,
 )
 from protector.helpers import get_view_permission
-from protector.managers import GenericUserToGroupManager, OwnerToPermissionManager, \
-    OwnerPermissionManager, UserGroupManager, GroupUserManager, RestrictedManager, \
-    GenericGroupManager
+from protector.managers import (
+    GenericUserToGroupManager,
+    OwnerToPermissionManager,
+    OwnerPermissionManager,
+    UserGroupManager,
+    GroupUserManager,
+    RestrictedManager,
+    GenericGroupManager,
+)
 
 
 #  Form a from clause for all permission related to their owners
@@ -340,8 +345,7 @@ class UserGenericPermsMixin(GenericPermsMixin):
     def has_perm(self, perm, obj=None):
         if self.is_active and self.is_superuser:
             return True
-        # import pdb
-        # pdb.set_trace()
+
         for backend in auth.get_backends():
             if not hasattr(backend, 'has_perm'):
                 continue

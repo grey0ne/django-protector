@@ -137,13 +137,14 @@ class HistorySavingBaseQuerySet(QuerySet):
                 del get_kwargs['initiator']
         except KeyError:
             pass
-
         try:
             result = super(HistorySavingBaseQuerySet, self).get_or_create(defaults=defaults, **get_kwargs)
         except ValidationError:
             # in case there's no such record in db, create will raise Validation error
             # due to absence of initiator and reason fields.
             # Here we explicitly create new record with such fields.
+            if defaults:
+                kwargs.update(defaults)
             result = self.create(**kwargs)
         return (result, True) if not isinstance(result, tuple) else result
 

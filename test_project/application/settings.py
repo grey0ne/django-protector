@@ -68,8 +68,6 @@ STATIC_URL = '/static/'
 AUTH_USER_MODEL = 'test_app.TestUser'
 PROTECTOR_GENERIC_GROUP = 'test_app.TestGroup'
 
-DISABLE_GENERIC_PERMISSION_CACHE = True
-
 AUTHENTICATION_BACKENDS = (
     'application.backends.TestBackend',
     # 'django.contrib.auth.backends.ModelBackend',

@@ -26,13 +26,14 @@ class UserGroupManager(models.Manager):
         super(UserGroupManager, self).__init__()
         self.instance = instance
 
-    def add(self, *groups, **kwargs):
+    def add(self, initiator, reason, *groups, **kwargs):
         roles = kwargs.get('roles')
         responsible = kwargs.get('responsible')
         GenericUserToGroup = apps.get_model('protector', 'GenericUserToGroup')
         for group in groups:
             roles = roles or group.DEFAULT_ROLE
             utg, created = GenericUserToGroup.objects.get_or_create(
+                initiator=initiator, reason=reason,
                 user=self.instance,
                 group_id=group.pk,
                 group_content_type=ContentType.objects.get_for_model(group),
@@ -42,7 +43,7 @@ class UserGroupManager(models.Manager):
                 utg.roles |= roles
                 utg.save()
 
-    def remove(self, group, roles=None):
+    def remove(self, group, initiator, reason, roles=None):
         GenericUserToGroup = apps.get_model('protector', 'GenericUserToGroup')
         try:
             utg = GenericUserToGroup.objects.get(
@@ -53,7 +54,7 @@ class UserGroupManager(models.Manager):
         except GenericUserToGroup.DoesNotExist:
             return
         if roles is None or utg.roles == roles:
-            utg.delete()
+            utg.delete(initiator, reason)
         else:
             utg.roles &= ~roles
             utg.save()
@@ -108,7 +109,7 @@ class GroupUserManager(models.Manager):
                 gug.roles |= roles
                 gug.save()
 
-    def remove(self, user, roles=None):
+    def remove(self, user, initiator, reason, roles=None):
         GenericUserToGroup = apps.get_model('protector', 'GenericUserToGroup')
         # if roles is None just remove user from group else remove role from user
         try:
@@ -120,7 +121,7 @@ class GroupUserManager(models.Manager):
         except GenericUserToGroup.DoesNotExist:
             return
         if roles is None or utg.roles == roles:
-            utg.delete()
+            utg.delete(initiator, reason)
         else:
             utg.roles &= ~roles
             utg.save()
