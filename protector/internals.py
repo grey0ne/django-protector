@@ -21,6 +21,9 @@ OWNER_VALUES_TO_SAVE_FOR_HISTORY = (
     'content_type_id', 'object_id', 'owner_content_type_id',
     'owner_object_id', 'permission_id', 'responsible_id', 'roles',
 )
+GENERIC_GROUP_VALUES_TO_SAVE_FOR_HISTORY = (
+    'user_id', 'roles', 'group_id', 'group_content_type_id', 'responsible_id'
+)
 
 
 def get_permission_owners_query():

@@ -1,9 +1,16 @@
+from copy import deepcopy
 from django.db.models.query import QuerySet
 from django.db.models import F
 from django.apps import apps
 from django.contrib.contenttypes.models import ContentType
-# from protector.models import HistoryOwnerToPermission, HistoryGenericUserToGroup
-from protector.internals import VIEW_PERMISSION_NAME, _get_restriction_filter
+from django.core.exceptions import ValidationError
+from django.contrib.auth import get_user_model
+from protector.internals import (
+    VIEW_PERMISSION_NAME,
+    OWNER_VALUES_TO_SAVE_FOR_HISTORY,
+    GENERIC_GROUP_VALUES_TO_SAVE_FOR_HISTORY,
+    _get_restriction_filter,
+)
 from protector.helpers import filter_queryset_by_permission, get_view_permission
 
 
@@ -15,7 +22,93 @@ class PermissionQuerySet(QuerySet):
         return filter_queryset_by_permission(self, user, permission)
 
 
-class GenericUserToGroupQuerySet(QuerySet):
+class HistorySavingBaseQuerySet(QuerySet):
+    def __init__(self, model_queryset_name, **kwargs):
+        self.protector_model = None
+        self.history_model = None
+        self.history_values = None
+        protector_model_names = (
+            {
+                'model': 'OwnerToPermission',
+                'history_model': 'HistoryOwnerToPermission'
+            },
+            {
+                'model': 'GenericUserToGroup',
+                'history_model': 'HistoryGenericUserToGroup'
+            }
+        )
+
+        for model_name in protector_model_names:
+            if model_name['model'] in model_queryset_name:
+                self.protector_model = apps.get_model('protector', model_name['model'])
+                self.history_model = apps.get_model('protector', model_name['history_model'])
+
+        if self.history_model is None or self.protector_model is None:
+            raise ValidationError('Unknown protector model')
+
+        if self.protector_model.__name__ == 'OwnerToPermission':
+            self.history_values = OWNER_VALUES_TO_SAVE_FOR_HISTORY
+        elif self.protector_model.__name__ == 'GenericUserToGroup':
+            self.history_values = GENERIC_GROUP_VALUES_TO_SAVE_FOR_HISTORY
+
+        super(HistorySavingBaseQuerySet, self).__init__(**kwargs)
+
+    def delete(self, initiator, reason):
+        histories_to_create = list()
+
+        if not isinstance(initiator, get_user_model()):
+            raise ValidationError('Initiator should be an instance of User model')
+        if not isinstance(reason, str) or not len(reason):
+            raise ValidationError('You should point the reason for this action')
+
+        objs_to_delete = self.values(*self.history_values)
+
+        for obj in objs_to_delete:
+            obj.update({
+                'initiator': initiator,
+                'reason': reason,
+                'change_type': self.history_model.TYPE_REMOVE,
+            })
+            histories_to_create.append(self.history_model(**obj))
+
+        self.history_model.objects.bulk_create(histories_to_create)
+
+        super(HistorySavingBaseQuerySet, self).delete()
+
+    def create(self, **kwargs):
+        if 'initiator' not in kwargs and 'initiator_id' not in kwargs:
+            raise ValidationError('You should indicate, who was the initiator of this action')
+        if 'initiator' in kwargs and not isinstance(kwargs['initiator'], get_user_model()):
+            raise ValidationError('Initiator is not an instance of user model')
+        if 'initiator_id' in kwargs and not isinstance(kwargs['initiator_id'], int):
+            raise ValidationError('Initiator ID is not an instance of int class')
+
+        if 'reason' not in kwargs or not len(kwargs['reason']) or not isinstance(kwargs['reason'], str):
+            raise ValidationError('You should point the reason for this action')
+
+        history_kwargs = deepcopy(kwargs)
+        history_kwargs.update({'change_type': self.history_model.TYPE_ADD})
+
+        try:
+            del kwargs['reason']
+            if 'initiator' in kwargs:
+                del kwargs['initiator']
+            else:
+                del kwargs['initiator_id']
+        except KeyError:
+            pass
+
+        super(HistorySavingBaseQuerySet, self).create(**kwargs)
+        self.history_model.objects.create(**history_kwargs)
+
+
+class GenericUserToGroupQuerySet(HistorySavingBaseQuerySet):
+    def __init__(self, **kwargs):
+        super(GenericUserToGroupQuerySet, self).__init__(
+            model_queryset_name=self.__class__.__name__,
+            **kwargs
+        )
+
     def by_role(self, roles):
         utg_table_name = self.model._meta.db_table
         return self.extra(
@@ -48,33 +141,23 @@ class RestrictedQuerySet(PermissionQuerySet):
         return condition
 
 
-class OwnerToPermissionQuerySet(QuerySet):
+class OwnerToPermissionQuerySet(HistorySavingBaseQuerySet):
+    def __init__(self, **kwargs):
+        super(OwnerToPermissionQuerySet, self).__init__(
+            model_queryset_name=self.__class__.__name__,
+            **kwargs
+        )
+
     def without_obj_perms(self):
         return self.filter(
             object_id__isnull=True,
             content_type_id__isnull=True
         )
 
-    def delete(self, initiator, reason):
-        HistoryOwnerToPermission = apps.get_model('protector', 'HistoryOwnerToPermission')
-        histories_to_create = list()
-
-        deleting_otps = self.values(
-            'content_type_id', 'roles', 'owner_content_type_id', 'permission_id',
-            'object_id', 'owner_object_id', 'responsible_id',
-        )
-
-        for otp in deleting_otps:
-            otp.update({
-                'initiator': initiator,
-                'reason': reason,
-                # 'change_type': HistoryOwnerToPermission.TYPE_REMOVE_PERMISSION,
-            })
-            histories_to_create.append(HistoryOwnerToPermission(**otp))
-
-        HistoryOwnerToPermission.objects.bulk_create(histories_to_create)
-
-        super(OwnerToPermissionQuerySet, self).delete()
+    def update(self, **kwargs):
+        if kwargs and self.filter(**kwargs).exists():
+            raise ValidationError('Duplicate with kwargs: {}'.format(kwargs))
+        super(OwnerToPermissionQuerySet, self).update(**kwargs)
 
 
 class PermAnnotatedMixin(QuerySet):
@@ -91,7 +174,6 @@ class PermAnnotatedMixin(QuerySet):
 
 
 class GenericGroupQuerySet(QuerySet):
-
     def update(self, *args, **kwargs):
         # Automatically update group links
         # WARNING it does NOT automatically delete stale perms
