@@ -191,11 +191,6 @@ class OwnerToPermissionQuerySet(HistorySavingBaseQuerySet):
             content_type_id__isnull=True
         )
 
-    def update(self, **kwargs):
-        if kwargs and self.filter(**kwargs).exists():
-            raise ValidationError('Duplicate with kwargs: {}'.format(kwargs))
-        super(OwnerToPermissionQuerySet, self).update(**kwargs)
-
 
 class PermAnnotatedMixin(QuerySet):
 
