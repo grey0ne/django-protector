@@ -6,6 +6,7 @@ __pycache__
 
 # Temporary OS files
 Icon*
+*DS_Store
 
 # Temporary virtualenv files
 .cache
