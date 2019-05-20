@@ -26,24 +26,28 @@ class UserGroupManager(models.Manager):
         super(UserGroupManager, self).__init__()
         self.instance = instance
 
-    def add(self, initiator, reason, *groups, **kwargs):
+    def add(self, groups, reason, **kwargs):
         roles = kwargs.get('roles')
         responsible = kwargs.get('responsible')
+        initiator = kwargs.get('initiator')
         GenericUserToGroup = apps.get_model('protector', 'GenericUserToGroup')
+        if not hasattr(groups, '__iter__'):
+            groups = [groups]
         for group in groups:
             roles = roles or group.DEFAULT_ROLE
             utg, created = GenericUserToGroup.objects.get_or_create(
-                initiator=initiator, reason=reason,
                 user=self.instance,
                 group_id=group.pk,
                 group_content_type=ContentType.objects.get_for_model(group),
+                reason=reason,
+                initiator=initiator,
                 defaults={'responsible': responsible, 'roles': roles}
             )
             if not created and utg.roles != roles:
                 utg.roles |= roles
                 utg.save()
 
-    def remove(self, group, initiator, reason, roles=None):
+    def remove(self, group, reason, roles=None, initiator=None):
         GenericUserToGroup = apps.get_model('protector', 'GenericUserToGroup')
         try:
             utg = GenericUserToGroup.objects.get(
@@ -54,7 +58,7 @@ class UserGroupManager(models.Manager):
         except GenericUserToGroup.DoesNotExist:
             return
         if roles is None or utg.roles == roles:
-            utg.delete(initiator, reason)
+            utg.delete(reason, initiator)
         else:
             utg.roles &= ~roles
             utg.save()
@@ -94,22 +98,25 @@ class GroupUserManager(models.Manager):
         user_ids = self.instance.users_relations.values_list('user_id', flat=True)
         return get_user_model().objects.filter(id__in=user_ids)
 
-    def add(self, initiator, reason, *users, **kwargs):
+    def add(self, users, reason, **kwargs):
         roles = kwargs.get('roles', self.instance.DEFAULT_ROLE)
+        initiator = kwargs.get('initiator')
         responsible = kwargs.get('responsible')
         GenericUserToGroup = apps.get_model('protector', 'GenericUserToGroup')
+        if not hasattr(users, '__iter__'):
+            users = [users]
         for user in users:
             gug, created = GenericUserToGroup.objects.get_or_create(
-                initiator=initiator, reason=reason,
                 user=user, group_id=self.instance.id,
                 group_content_type=ContentType.objects.get_for_model(self.instance),
+                initiator=initiator, reason=reason,
                 defaults={'roles': roles, 'responsible': responsible}
             )
             if not created:
                 gug.roles |= roles
                 gug.save()
 
-    def remove(self, user, initiator, reason, roles=None):
+    def remove(self, user, reason, roles=None, initiator=None):
         GenericUserToGroup = apps.get_model('protector', 'GenericUserToGroup')
         # if roles is None just remove user from group else remove role from user
         try:
@@ -121,7 +128,7 @@ class GroupUserManager(models.Manager):
         except GenericUserToGroup.DoesNotExist:
             return
         if roles is None or utg.roles == roles:
-            utg.delete(initiator, reason)
+            utg.delete(reason, initiator)
         else:
             utg.roles &= ~roles
             utg.save()
@@ -149,7 +156,7 @@ class OwnerPermissionManager(models.Manager):
             ownertopermission_generic_restriction_relations__owner_content_type__in=[ctype]
         ).distinct()
 
-    def add(self, perm, initiator, reason, obj=None, responsible=None, roles=None):
+    def add(self, perm, reason, obj=None, responsible=None, roles=None, initiator=None):
         roles = roles or DEFAULT_ROLE
         kwargs = {
             'owner_object_id': self.instance.id,
@@ -181,7 +188,7 @@ class OwnerPermissionManager(models.Manager):
             otp.roles |= roles
             otp.save()
 
-    def remove(self, perm, initiator, reason, obj=None, roles=None):
+    def remove(self, perm, reason, obj=None, roles=None, initiator=None):
         if obj is None:
             obj_id = None
             obj_ctype_id = None
@@ -204,7 +211,7 @@ class OwnerPermissionManager(models.Manager):
         except OwnerToPermission.DoesNotExist:
             return
         if roles is None or otp.roles == roles:
-            otp.delete(initiator, reason)
+            otp.delete(reason, initiator)
         else:
             otp.roles &= ~roles
             otp.save()

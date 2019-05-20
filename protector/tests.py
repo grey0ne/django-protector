@@ -57,9 +57,9 @@ class GenericObjectRestrictionTest(TestCase):
         )
         self.user.permissions.add(
             self.permission,
-            self.initiator_user,
             TEST_REASON,
-            self.user2
+            obj=self.user2,
+            initiator=self.initiator_user,
         )
         self.assertTrue(
             self.user.has_perm(self.permission_key, self.user2)
@@ -73,8 +73,8 @@ class GenericObjectRestrictionTest(TestCase):
         )
         self.user.permissions.add(
             self.permission,
-            self.initiator_user,
             TEST_REASON,
+            initiator=self.initiator_user,
         )
         self.assertTrue(
             self.user.has_perm(self.permission_key, self.user2)
@@ -88,23 +88,23 @@ class GenericObjectRestrictionTest(TestCase):
         )
         self.group.permissions.add(
             self.permission,
-            self.initiator_user,
             TEST_REASON,
-            self.user,
+            obj=self.user,
+            initiator=self.initiator_user,
         )
         self.group.users.add(
-            self.initiator_user,
-            TEST_REASON,
             self.user2,
+            TEST_REASON,
+            initiator=self.initiator_user,
         )
         self.assertTrue(
             self.user2.has_perm(self.permission_key, self.user)
         )
         self.group.permissions.remove(
             self.permission,
-            self.initiator_user,
             TEST_REASON,
-            self.user,
+            obj=self.user,
+            initiator=self.initiator_user,
         )
         self.assertFalse(
             self.user2.has_perm(self.permission_key, self.user)
@@ -113,20 +113,20 @@ class GenericObjectRestrictionTest(TestCase):
         self.assertEqual(self.HistoryOwnerToPermission.objects.count(), 2)
 
     def test_group_perm(self):
-        self.user2.groups.add(self.initiator_user, TEST_REASON, self.group)
-        self.group.permissions.add(self.permission, self.initiator_user, TEST_REASON)
-        self.group.permissions.add(self.permission2, self.initiator_user, TEST_REASON)
+        self.user2.groups.add(self.group, TEST_REASON, initiator=self.initiator_user)
+        self.group.permissions.add(self.permission, TEST_REASON, initiator=self.initiator_user)
+        self.group.permissions.add(self.permission2, TEST_REASON, initiator=self.initiator_user)
         self.assertTrue(
             self.user2.has_perm(self.permission_key)
         )
-        self.group.permissions.remove(self.permission, self.initiator_user, TEST_REASON)
+        self.group.permissions.remove(self.permission, TEST_REASON, initiator=self.initiator_user)
         self.assertFalse(
             self.user2.has_perm(self.permission_key)
         )
         self.assertTrue(
             self.user2.has_perm(self.permission2_key)
         )
-        self.group.users.remove(self.user2, self.initiator_user, TEST_REASON)
+        self.group.users.remove(self.user2, TEST_REASON, initiator=self.initiator_user)
         self.assertFalse(
             self.user2.has_perm(self.permission2_key)
         )
@@ -145,7 +145,7 @@ class GenericObjectRestrictionTest(TestCase):
         )
         self.user.permissions.add(
             self.TestGroup.get_view_permission(),
-            self.initiator_user, TEST_REASON,
+            TEST_REASON, initiator=self.initiator_user
         )
         self.assertEquals(
             self.TestGroup.objects.visible(self.user).count(), 2
@@ -158,8 +158,8 @@ class GenericObjectRestrictionTest(TestCase):
         )
         self.user2.permissions.add(
             self.TestGroup.get_view_permission(),
-            self.initiator_user, TEST_REASON,
-            self.group2
+            TEST_REASON, initiator=self.initiator_user,
+            obj=self.group2
         )
         qset = self.TestGroup.objects.visible(self.user2)
         self.assertEquals(qset.count(), 2)
@@ -173,11 +173,11 @@ class GenericObjectRestrictionTest(TestCase):
         self.assertEquals(
             self.group.users.count(), 0
         )
-        self.group.users.add(self.initiator_user, TEST_REASON, self.user)
+        self.group.users.add(self.user, TEST_REASON, initiator=self.initiator_user)
         self.assertEquals(
             self.group.users.count(), 1
         )
-        self.group.users.add(self.initiator_user, TEST_REASON, self.user2, roles=DEFAULT+ROLE2)
+        self.group.users.add(self.user2, TEST_REASON, roles=DEFAULT+ROLE2, initiator=self.initiator_user)
 
         self.assertEquals(
             self.group.users.by_role(roles=DEFAULT).count(), 2
@@ -188,7 +188,7 @@ class GenericObjectRestrictionTest(TestCase):
         self.assertEquals(
             self.group.users.by_role(roles=ROLE3).count(), 0
         )
-        self.group.users.add(self.initiator_user, TEST_REASON, self.user3, roles=ROLE3)
+        self.group.users.add(self.user3, TEST_REASON, initiator=self.initiator_user, roles=ROLE3)
         self.assertEquals(
             self.group.users.by_role(roles=ROLE2+ROLE3).count(), 2
         )
@@ -200,8 +200,8 @@ class GenericObjectRestrictionTest(TestCase):
     def test_content_type_perm(self):
         DEFAULT = 1
         ROLE2 = 2
-        self.group.users.add(self.initiator_user, TEST_REASON, self.user2, roles=ROLE2)
-        self.group.users.add(self.initiator_user, TEST_REASON, self.user, roles=DEFAULT)
+        self.group.users.add(self.user2, TEST_REASON, initiator=self.initiator_user, roles=ROLE2)
+        self.group.users.add(self.user, TEST_REASON, initiator=self.initiator_user, roles=DEFAULT)
         self.assertFalse(
             self.user2.has_perm(self.permission2_key, self.group)
         )
@@ -229,8 +229,8 @@ class GenericObjectRestrictionTest(TestCase):
             content_type=ContentType.objects.get_for_model(self.TestGroup),
             roles=ROLE2, permission=self.TestGroup.get_view_permission()
         )
-        self.group.users.add(self.initiator_user, TEST_REASON, self.user)
-        self.group2.users.add(self.initiator_user, TEST_REASON, self.user2, roles=ROLE2)
+        self.group.users.add(self.user, TEST_REASON, initiator=self.initiator_user)
+        self.group2.users.add(self.user2, TEST_REASON, initiator=self.initiator_user, roles=ROLE2)
         self.assertEquals(
             self.TestGroup.objects.visible(self.user2).count(), 2
         )
@@ -242,12 +242,12 @@ class GenericObjectRestrictionTest(TestCase):
     def test_all_permission_owners(self):
         self.user2.is_superuser = True
         self.user2.save()
-        self.user.permissions.add(self.permission, self.initiator_user, TEST_REASON)
+        self.user.permissions.add(self.permission, TEST_REASON, initiator=self.initiator_user)
         self.assertEquals(
             get_all_permission_owners(self.permission).count(), 1
         )
-        self.group.permissions.add(self.permission, self.initiator_user, TEST_REASON)
-        self.group.users.add(self.initiator_user, TEST_REASON, self.user2)
+        self.group.permissions.add(self.permission, TEST_REASON, initiator=self.initiator_user)
+        self.group.users.add(self.user2, TEST_REASON, initiator=self.initiator_user)
         self.assertEquals(
             get_all_permission_owners(self.permission).count(), 2
         )
@@ -279,10 +279,11 @@ class GenericObjectRestrictionTest(TestCase):
         self.assertEquals(
             owners.count(), 0
         )
-        self.group2.add_viewer(self.user2)
+        self.group2.add_viewer(self.user2, TEST_REASON, initiator=self.initiator_user)
         self.assertEquals(
             owners.count(), 1
         )
+        self.assertEqual(self.HistoryOwnerToPermission.objects.count(), 1)
 
     def test_superuser(self):
         groups = self.TestGroup.objects.visible(self.user2)
@@ -304,7 +305,7 @@ class GenericObjectRestrictionTest(TestCase):
     def test_groups_by_ctype(self):
         DEFAULT = 1
         ROLE2 = 2
-        self.group2.users.add(self.user2, roles=DEFAULT)
+        self.group2.users.add(self.user2, TEST_REASON, initiator=self.initiator_user, roles=DEFAULT)
         self.assertEquals(
             self.user2.groups.by_ctype(
                 ContentType.objects.get_for_model(self.group2), DEFAULT
@@ -315,6 +316,7 @@ class GenericObjectRestrictionTest(TestCase):
                 ContentType.objects.get_for_model(self.group2), ROLE2
             ).count(), 0
         )
+        self.assertEqual(self.HistoryGenericUserToGroup.objects.count(), 1)
 
     def test_user_to_group_by_role(self):
         utg_qset = GenericUserToGroup.objects.filter(
@@ -325,29 +327,33 @@ class GenericObjectRestrictionTest(TestCase):
         DEFAULT = 1
         ROLE2 = 2
         ROLE3 = 4
-        self.group2.users.add(self.user2, roles=ROLE2)
+        self.group2.users.add(self.user2, TEST_REASON, initiator=self.initiator_user, roles=ROLE2)
         self.assertEquals(
             utg_qset.by_role(DEFAULT).count(), 0
         )
         self.assertEquals(
             utg_qset.by_role(ROLE2).count(), 1
         )
-        self.group2.users.add(self.user2, roles=ROLE3)
+        self.group2.users.add(self.user2, TEST_REASON, initiator=self.initiator_user, roles=ROLE3)
+        # history count isn't increased as we just update roles
         self.assertEquals(
             utg_qset.by_role(ROLE2).count(), 1
         )
-        self.user2.groups.remove(self.group2, ROLE2)
+        self.user2.groups.remove(self.group2, TEST_REASON, initiator=self.initiator_user, roles=ROLE2)
+        # same reason why no increase
         self.assertEquals(
             utg_qset.by_role(ROLE2).count(), 0
         )
         self.assertEquals(
             utg_qset.by_role(ROLE3).count(), 1
         )
-        self.user2.groups.remove(self.group2, ROLE3)
-        self.user2.groups.remove(self.group2, ROLE3)  # Test DoesNotExist
+        self.user2.groups.remove(self.group2, TEST_REASON, ROLE3, self.initiator_user)
+        self.user2.groups.remove(self.group2, TEST_REASON, ROLE3, initiator=self.initiator_user)  # Test DoesNotExist
         self.assertEquals(
             utg_qset.by_role(ROLE3).count(), 0
         )
+        self.assertEqual(self.HistoryOwnerToPermission.objects.count(), 0)
+        self.assertEqual(self.HistoryGenericUserToGroup.objects.count(), 2)
 
     def test_permissioned_manager(self):
         groups = self.TestGroup.by_perm.filter_by_permission(
@@ -356,14 +362,21 @@ class GenericObjectRestrictionTest(TestCase):
         self.assertEquals(
             groups.count(), 0
         )
-        self.user2.permissions.add(self.group2.get_view_permission(), self.group2)
+        self.user2.permissions.add(
+            self.group2.get_view_permission(),
+            TEST_REASON,
+            self.group2,
+            initiator=self.initiator_user
+        )
         self.assertEquals(
             groups.count(), 1
         )
+        self.assertEqual(self.HistoryOwnerToPermission.objects.count(), 1)
 
     def test_otp_unicode(self):
         OwnerToPermission.objects.create(
             owner=self.user2,
+            reason=TEST_REASON,
             content_type=ContentType.objects.get_for_model(self.TestGroup),
             permission=self.TestGroup.get_view_permission(),
         )
@@ -373,24 +386,26 @@ class GenericObjectRestrictionTest(TestCase):
         )
 
     def test_has_perms(self):
-        self.user2.permissions.add(self.permission)
+        self.user2.permissions.add(self.permission, TEST_REASON)
         self.assertFalse(
             self.user2.has_perms([self.permission_key, self.permission2_key])
         )
-        self.user2.permissions.add(self.permission2)
+        self.user2.permissions.add(self.permission2, TEST_REASON)
         self.assertTrue(
             self.user2.has_perms([self.permission_key, self.permission2_key])
         )
+        self.assertEqual(self.HistoryOwnerToPermission.objects.count(), 2)
 
     def test_has_module_perms(self):
         app_label = get_user_model()._meta.app_label
         self.assertFalse(
             self.user2.has_module_perms(app_label)
         )
-        self.user2.permissions.add(self.permission)
+        self.user2.permissions.add(self.permission, TEST_REASON)
         self.assertTrue(
             self.user2.has_module_perms(app_label)
         )
+        self.assertEqual(self.HistoryOwnerToPermission.objects.count(), 1)
 
     def test_object_list_filter(self):
         group_ctype = ContentType.objects.get_for_model(self.TestGroup)
@@ -404,34 +419,36 @@ class GenericObjectRestrictionTest(TestCase):
             )), 0
         )
         self.user2.permissions.add(
-            self.TestGroup.get_view_permission(), self.group2
+            self.TestGroup.get_view_permission(), TEST_REASON, self.group2, initiator=self.initiator_user
         )
         self.assertEquals(
             filter_object_id_list(
                 obj_list, self.user2.id, self.TestGroup.get_view_permission().id
             ), [(group_ctype.id, self.group2.id)]
         )
+        self.assertEqual(self.HistoryOwnerToPermission.objects.count(), 1)
 
     def test_user_has_perm_on_any_object(self):
         self.assertFalse(
             is_user_having_perm_on_any_object(self.user, self.permission_key)
         )
-        self.user.permissions.add(self.permission, self.group2)
+        self.user.permissions.add(self.permission, TEST_REASON, self.group2, initiator=self.initiator_user)
         self.assertTrue(
             is_user_having_perm_on_any_object(self.user, self.permission_key)
         )
         self.assertFalse(
             is_user_having_perm_on_any_object(self.user, self.permission2_key)
         )
-        self.user.permissions.add(self.permission, self.group2)
-        self.user.permissions.remove(self.permission, self.group2)
+        self.user.permissions.add(self.permission, TEST_REASON, self.group2)
+        self.user.permissions.remove(self.permission, TEST_REASON, self.group2)
         self.assertFalse(
             is_user_having_perm_on_any_object(self.user, self.permission_key)
         )
-        self.user.permissions.add(self.permission)
+        self.user.permissions.add(self.permission, TEST_REASON, initiator=self.initiator_user)
         self.assertTrue(
             is_user_having_perm_on_any_object(self.user, self.permission_key)
         )
+        self.assertEqual(self.HistoryOwnerToPermission.objects.count(), 3)
 
     def test_superuser_has_perm_on_any_object(self):
         self.assertFalse(
@@ -447,32 +464,35 @@ class GenericObjectRestrictionTest(TestCase):
         self.assertFalse(
             check_single_permission(self.user, self.permission_key, self.group)
         )
-        self.user.permissions.add(self.permission)
+        self.user.permissions.add(self.permission, TEST_REASON, initiator=self.initiator_user)
         self.assertTrue(
             check_single_permission(self.user, self.permission_key, self.group)
         )
+        self.assertEqual(self.HistoryOwnerToPermission.objects.count(), 1)
 
     def test_single_permission_helper_on_object(self):
         self.assertFalse(
             check_single_permission(self.user, self.permission_key, self.group)
         )
-        self.user.permissions.add(self.permission, obj=self.group)
+        self.user.permissions.add(self.permission, TEST_REASON, obj=self.group, initiator=self.initiator_user)
         self.assertTrue(
             check_single_permission(self.user, self.permission_key, self.group)
         )
+        self.assertEqual(self.HistoryOwnerToPermission.objects.count(), 1)
     
     def test_single_permission_global(self):
         self.assertFalse(
             check_single_permission(self.user, self.permission_key)
         )
-        self.user.permissions.add(self.permission, obj=self.group)
+        self.user.permissions.add(self.permission, TEST_REASON, obj=self.group)
         self.assertFalse(
             check_single_permission(self.user, self.permission_key)
         )
-        self.user.permissions.add(self.permission)
+        self.user.permissions.add(self.permission, TEST_REASON)
         self.assertTrue(
             check_single_permission(self.user, self.permission_key)
         )
+        self.assertEqual(self.HistoryOwnerToPermission.objects.count(), 2)
     
     def test_non_existing_permission(self):
         self.assertFalse(

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import copy
 from django.db import models
 from django.conf import settings
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -99,7 +100,8 @@ class AbstractBaseHistory(models.Model):
     initiator = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         related_name='%(class)s_initiator',
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
+        blank=True, null=True
     )
     reason = models.TextField(
         verbose_name=_('change reason'),
@@ -156,8 +158,8 @@ class GenericUserToGroup(AbstractGenericUserToGroup):
             username=self.user.username
         )
 
-    def delete(self, initiator, reason):
-        if not isinstance(initiator, get_user_model()):
+    def delete(self, reason, initiator=None):
+        if initiator and not isinstance(initiator, get_user_model()):
             raise ValidationError('Initiator should be an instance of User model')
         if not isinstance(reason, str) or not len(reason):
             raise ValidationError('You should point the reason for this action')
@@ -166,7 +168,7 @@ class GenericUserToGroup(AbstractGenericUserToGroup):
             key: value for key, value in self.__dict__.items() if key in GENERIC_GROUP_VALUES_TO_SAVE_FOR_HISTORY
         }
         history_dict.update({
-            'initiator_id': initiator.id,
+            'initiator': initiator,
             'reason': reason,
             'change_type': HistoryGenericUserToGroup.TYPE_REMOVE,
         })
@@ -201,6 +203,8 @@ class HistoryGenericUserToGroup(AbstractBaseHistory, AbstractGenericUserToGroup)
             group_name=self.group_content_type,
             group_id=self.group_id,
         )
+
+    objects = models.Manager()
 
 
 class OwnerToPermission(AbstractOwnerToPermission):
@@ -253,13 +257,24 @@ class OwnerToPermission(AbstractOwnerToPermission):
         # This is made for cases when object_id or content_type are None,
         # as db engines do not take into account NULL fields when talking about uniqueness.
         # As a drawback, we restrict creating in-memory objects that are already stored in db
-        if kwargs and OwnerToPermission.objects.filter(**kwargs).exists():
-            raise ValidationError('Duplicate with kwargs: {}'.format(kwargs))
-        else:
-            super(OwnerToPermission, self).__init__(*args, **kwargs)
+        if kwargs:
+            filter_kwargs = copy.deepcopy(kwargs)
+            # this is made to avoid not generated reverse relation error on filter
+            if 'owner' in kwargs:
+                del filter_kwargs['owner']
+                filter_kwargs['owner_content_type_id'] = ContentType.objects.get_for_model(kwargs['owner']).id
+                filter_kwargs['owner_object_id'] = kwargs['owner'].id
+            if 'content_object' in kwargs:
+                del filter_kwargs['content_object']
+                filter_kwargs['content_type_id'] = ContentType.objects.get_for_model(kwargs['content_object']).id
+                filter_kwargs['object_id'] = kwargs['content_object'].id
 
-    def delete(self, initiator, reason):
-        if not isinstance(initiator, get_user_model()):
+            if OwnerToPermission.objects.filter(**filter_kwargs).exists():
+                raise ValidationError('Duplicate with kwargs: {}'.format(kwargs))
+        super(OwnerToPermission, self).__init__(*args, **kwargs)
+
+    def delete(self, reason, initiator=None):
+        if initiator and not isinstance(initiator, get_user_model()):
             raise ValidationError('Initiator should be an instance of User model')
         if not isinstance(reason, str) or not len(reason):
             raise ValidationError('You should point the reason for this action')
@@ -268,7 +283,7 @@ class OwnerToPermission(AbstractOwnerToPermission):
             key: value for key, value in self.__dict__.items() if key in OWNER_VALUES_TO_SAVE_FOR_HISTORY
         }
         history_dict.update({
-            'initiator_id': initiator.id,
+            'initiator': initiator,
             'reason': reason,
             'change_type': HistoryOwnerToPermission.TYPE_REMOVE,
         })
@@ -304,6 +319,8 @@ class HistoryOwnerToPermission(AbstractBaseHistory, AbstractOwnerToPermission):
             group_id=self.owner_object_id,
             permission=self.permission.codename if self.permission else '',
         )
+
+    objects = models.Manager()
 
 
 class GenericPermsMixin(models.Model):
@@ -425,7 +442,7 @@ class AbstractGenericGroup(GenericPermsMixin):
 
     def _update_member_foreign_key(self):
         for field, roles in self.MEMBER_FOREIGN_KEY_FIELDS:
-            self.users.add(getattr(self, field), roles=roles)
+            self.users.add(getattr(self, field), 'MODEL UPDATE REASON', roles=roles)
 
     def get_roles(self, user):
         try:
@@ -600,7 +617,7 @@ class Restricted(models.Model):
             self.generate_restriction()
             # Create a corresponding restriction object and link it to parent
 
-    def add_viewer(self, viewer, responsible=None, roles=None):
+    def add_viewer(self, viewer, reason, responsible=None, initiator=None, roles=None):
         roles = roles or DEFAULT_ROLE
         otp, created = OwnerToPermission.objects.get_or_create(
             object_id=self.pk,
@@ -608,6 +625,7 @@ class Restricted(models.Model):
             owner_object_id=viewer.pk,
             owner_content_type=ContentType.objects.get_for_model(viewer),
             permission=get_view_permission(),
+            initiator=initiator, reason=reason,
             defaults={'responsible': responsible, 'roles': roles}
         )
         if not created and otp.roles != roles:

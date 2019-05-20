@@ -24,6 +24,7 @@ OWNER_VALUES_TO_SAVE_FOR_HISTORY = (
 GENERIC_GROUP_VALUES_TO_SAVE_FOR_HISTORY = (
     'user_id', 'roles', 'group_id', 'group_content_type_id', 'responsible_id'
 )
+REASON_VALIDATION_ERROR = 'You should point the reason for this action'
 
 
 def get_permission_owners_query():

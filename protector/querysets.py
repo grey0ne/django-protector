@@ -9,6 +9,7 @@ from protector.internals import (
     VIEW_PERMISSION_NAME,
     OWNER_VALUES_TO_SAVE_FOR_HISTORY,
     GENERIC_GROUP_VALUES_TO_SAVE_FOR_HISTORY,
+    REASON_VALIDATION_ERROR,
     _get_restriction_filter,
     get_user_ctype,
 )
@@ -54,13 +55,11 @@ class HistorySavingBaseQuerySet(QuerySet):
 
         super(HistorySavingBaseQuerySet, self).__init__(**kwargs)
 
-    def delete(self, initiator, reason):
+    def delete(self, reason, initiator=None):
         histories_to_create = list()
 
-        if not isinstance(initiator, get_user_model()):
-            raise ValidationError('Initiator should be an instance of User model')
         if not isinstance(reason, str) or not len(reason):
-            raise ValidationError('You should point the reason for this action')
+            raise ValidationError(REASON_VALIDATION_ERROR)
 
         objs_to_delete = self.values(*self.history_values)
 
@@ -77,15 +76,14 @@ class HistorySavingBaseQuerySet(QuerySet):
         super(HistorySavingBaseQuerySet, self).delete()
 
     def create(self, **kwargs):
-        if 'initiator' not in kwargs and 'initiator_id' not in kwargs:
-            raise ValidationError('You should indicate, who was the initiator of this action')
-        if 'initiator' in kwargs and not isinstance(kwargs['initiator'], get_user_model()):
-            raise ValidationError('Initiator is not an instance of user model')
-        if 'initiator_id' in kwargs and not isinstance(kwargs['initiator_id'], int):
-            raise ValidationError('Initiator ID is not an instance of int class')
+        if 'initiator' in kwargs:
+            if not kwargs['initiator']:
+                del kwargs['initiator']
+            elif not isinstance(kwargs['initiator'], get_user_model()):
+                raise ValidationError('Initiator is not an instance of user model')
 
         if 'reason' not in kwargs or not len(kwargs['reason']) or not isinstance(kwargs['reason'], str):
-            raise ValidationError('You should point the reason for this action')
+            raise ValidationError(REASON_VALIDATION_ERROR)
 
         history_kwargs = deepcopy(kwargs)
         history_kwargs.update({'change_type': self.history_model.TYPE_ADD})
@@ -94,11 +92,8 @@ class HistorySavingBaseQuerySet(QuerySet):
             del kwargs['reason']
             if 'initiator' in kwargs:
                 del kwargs['initiator']
-            else:
-                del kwargs['initiator_id']
         except KeyError:
             pass
-
         created_obj = super(HistorySavingBaseQuerySet, self).create(**kwargs)
         self.history_model.objects.create(**history_kwargs)
 
@@ -111,8 +106,7 @@ class HistorySavingBaseQuerySet(QuerySet):
             GenericUserToGroup = apps.get_model('protector', 'GenericUserToGroup')
             GenericUserToGroup.objects.get_or_create(
                 reason=history_kwargs['reason'],
-                initiator_id=history_kwargs['initiator'].id\
-                    if 'initiator' in history_kwargs else history_kwargs['initiator_id'],
+                initiator=history_kwargs['initiator'] if 'initiator' in kwargs else None,
                 group_id=kwargs['owner_object_id'],
                 group_content_type_id=kwargs['owner_content_type'].id\
                     if 'owner_content_type' in kwargs else kwargs['owner_content_type_id'],
@@ -123,17 +117,13 @@ class HistorySavingBaseQuerySet(QuerySet):
         return created_obj
 
     def get_or_create(self, defaults=None, **kwargs):
-        if 'initiator_id' not in kwargs and 'initiator' not in kwargs:
-            raise ValidationError(u'Indicate initiator in case creation occurs')
         if 'reason' not in kwargs:
             raise ValidationError(u'Point out the reason in case creation occurs')
 
         get_kwargs = deepcopy(kwargs)
         try:
             del get_kwargs['reason']
-            if 'initiator_id' in kwargs:
-                del get_kwargs['initiator_id']
-            elif 'initiator' in kwargs:
+            if 'initiator' in kwargs:
                 del get_kwargs['initiator']
         except KeyError:
             pass
