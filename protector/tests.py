@@ -501,3 +501,44 @@ class GenericObjectRestrictionTest(TestCase):
         self.assertFalse(
             check_single_permission(self.user, 'not.exist')
         )
+
+    def test_no_owner_duplicates_allowed(self):
+        from django.core.exceptions import ValidationError
+        from django.db import IntegrityError
+        create_test_dict = {
+            'owner': self.user,
+            'permission': self.permission,
+            'reason': TEST_REASON,
+        }
+        try:
+            # Intentionally forgetting to point reason
+            OwnerToPermission.objects.create(owner=self.user, permission=self.permission)
+        except ValidationError:
+            pass
+        OwnerToPermission.objects.create(**create_test_dict)
+        try:
+            # Intentionally creating the same record
+            OwnerToPermission.objects.create(**create_test_dict)
+        except IntegrityError:
+            pass
+
+        _, created = OwnerToPermission.objects.get_or_create(
+            owner_content_type=ContentType.objects.get_for_model(self.user),
+            owner_object_id=self.user.id,
+            permission=self.permission,
+            reason=TEST_REASON
+        )
+        self.assertEqual(created, False)
+        self.assertEqual(OwnerToPermission.objects.count(), 1)
+        self.assertEqual(self.HistoryOwnerToPermission.objects.count(), 1)
+
+        _, created = OwnerToPermission.objects.get_or_create(
+            owner_content_type=ContentType.objects.get_for_model(self.user),
+            owner_object_id=self.user.id,
+            permission=self.permission2,
+            reason=TEST_REASON
+        )
+
+        self.assertEqual(created, True)
+        self.assertEqual(OwnerToPermission.objects.count(), 2)
+        self.assertEqual(self.HistoryOwnerToPermission.objects.count(), 2)

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import copy
-from django.db import models
+from django.db import models, IntegrityError
 from django.conf import settings
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.validators import MinLengthValidator
@@ -197,9 +197,10 @@ class HistoryGenericUserToGroup(AbstractBaseHistory, AbstractGenericUserToGroup)
         )
 
     def __str__(self):
-        return '{history_id} | initiated by {initiator} | {group_name} {group_id}'.format(
+        return '{history_id} | initiated by {initiator}, action: {action_type} | {group_name} {group_id}'.format(
             history_id=self.id,
-            initiator=self.initiator.username,
+            initiator=self.initiator.username if self.initiator else '',
+            action_type=self.change_type,
             group_name=self.group_content_type,
             group_id=self.group_id,
         )
@@ -270,7 +271,7 @@ class OwnerToPermission(AbstractOwnerToPermission):
                 filter_kwargs['object_id'] = kwargs['content_object'].id
 
             if OwnerToPermission.objects.filter(**filter_kwargs).exists():
-                raise ValidationError('Duplicate with kwargs: {}'.format(kwargs))
+                raise IntegrityError('Duplicate with kwargs: {}'.format(kwargs))
         super(OwnerToPermission, self).__init__(*args, **kwargs)
 
     def delete(self, reason, initiator=None):
@@ -312,13 +313,15 @@ class HistoryOwnerToPermission(AbstractBaseHistory, AbstractOwnerToPermission):
         )
 
     def __str__(self):
-        return '{history_id} | initiated by {initiator} | {group_name} {group_id} for perm {permission}'.format(
-            history_id=self.id,
-            initiator=self.initiator.username,
-            group_name=self.owner_content_type,
-            group_id=self.owner_object_id,
-            permission=self.permission.codename if self.permission else '',
-        )
+        return '{history_id} | initiated by {initiator},' \
+               'action: {action_type} | {group_name} {group_id} for perm {permission}'.format(
+                    history_id=self.id,
+                    initiator=self.initiator.username if self.initiator else '',
+                    action_type=self.change_type,
+                    group_name=self.owner_content_type,
+                    group_id=self.owner_object_id,
+                    permission=self.permission.codename if self.permission else '',
+                )
 
     objects = models.Manager()
 
