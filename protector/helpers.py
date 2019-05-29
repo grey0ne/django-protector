@@ -114,7 +114,8 @@ def filter_queryset_by_permission(qset, user, permission):
     if user.id is None or perm_id is None:
         return qset.none()
     condition = _get_permission_filter(qset, user.id, perm_id)
-    return qset.extra(where=[condition])
+    result = qset.extra(where=[condition])
+    return result
 
 
 def get_view_permission():
