@@ -51,18 +51,16 @@ def _get_filter_by_perm_condition(qset, user_id, perm_id, obj_id_field, ctype_id
         condition += """
             
                 SELECT gl.id as pid FROM protector_genericusertogroup gug LEFT JOIN protector_genericglobalperm gl ON gl.content_type_id = gug.group_content_type_id AND gl.roles & gug.roles
-                WHERE gug.user_id = {user_id} AND gl.permission_id = {perm_id} AND gl.content_type_id = {ctype_id} AND gug.group_id = {obj_id}
+                WHERE gug.user_id = {user_id!s} AND gl.permission_id = {perm_id!s} AND gl.content_type_id = {ctype_id!s} AND gug.group_id = {obj_id!s}
              UNION ALL 
                 SELECT op.id as pid
                 FROM protector_genericusertogroup gug LEFT JOIN protector_ownertopermission op ON gug.group_id = op.owner_object_id AND gug.group_content_type_id = op.owner_content_type_id AND gug.roles & op.roles
-                WHERE gug.user_id = {user_id} AND op.permission_id = {perm_id} AND op.content_type_id = {ctype_id} AND op.object_id = {obj_id}
+                WHERE gug.user_id = {user_id!s} AND op.permission_id = {perm_id!s} AND op.content_type_id = {ctype_id!s} AND op.object_id = {obj_id!s}
              UNION ALL
         """
     condition += """
-        
             SELECT op.id as pid FROM protector_genericusertogroup gug LEFT JOIN protector_ownertopermission op ON gug.group_id = op.owner_object_id AND gug.group_content_type_id = op.owner_content_type_id AND gug.roles & op.roles
-            WHERE gug.user_id = {user_id} AND op.permission_id = {perm_id} AND op.content_type_id IS NULL
-        
+            WHERE gug.user_id = {user_id!s} AND op.permission_id = {perm_id!s} AND op.content_type_id IS NULL
     ) as pids )
     """
     result = condition.format(

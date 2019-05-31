@@ -15,7 +15,6 @@ setup(
     license='MIT License',
     description='Django application for managing object level permissions and generic groups',
     url='https://github.com/grey0ne/django-protector',
-    long_description=README,
     author='Sergey Lihobabin',
     author_email='greyone@greyone.ru',
     test_suite='runtests.runtests',
