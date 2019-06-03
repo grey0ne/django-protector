@@ -1,5 +1,6 @@
 # Temporary Python files
 *.pyc
+.eggs
 *.egg-info
 __pycache__
 .ipynb_checkpoints
