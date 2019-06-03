@@ -1,4 +1,5 @@
 language: python
+dist: xenial
 install:
   - pip install -q -r requirements.txt
   - pip install coveralls
