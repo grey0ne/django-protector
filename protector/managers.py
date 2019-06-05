@@ -29,7 +29,6 @@ class UserGroupManager(models.Manager):
     def add(self, groups, reason, **kwargs):
         roles = kwargs.get('roles')
         responsible = kwargs.get('responsible')
-        initiator = kwargs.get('initiator')
         GenericUserToGroup = apps.get_model('protector', 'GenericUserToGroup')
         if not hasattr(groups, '__iter__'):
             groups = [groups]
@@ -40,12 +39,12 @@ class UserGroupManager(models.Manager):
                 group_id=group.pk,
                 group_content_type=ContentType.objects.get_for_model(group),
                 reason=reason,
-                initiator=initiator,
+                initiator=responsible,
                 defaults={'responsible': responsible, 'roles': roles}
             )
             if not created and utg.roles != roles:
                 utg.roles |= roles
-                utg.save(reason, initiator)
+                utg.save(reason, responsible)
 
     def remove(self, group, reason, roles=None, initiator=None):
         GenericUserToGroup = apps.get_model('protector', 'GenericUserToGroup')
