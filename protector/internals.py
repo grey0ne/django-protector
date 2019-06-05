@@ -4,7 +4,6 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from protector.query import Query
 
-
 ADD_PERMISSION_PERMISSION = 'add_permission'
 VIEW_RESTRICTED_OBJECTS = 'view_restricted_objects'
 VIEW_GENERIC_GROUP_HISTORY = 'view_generic_group_history'
@@ -16,15 +15,6 @@ VIEW_PERMISSION_NAME = 'protector.{0}'.format(VIEW_RESTRICTED_OBJECTS)
 NULL_OBJECT_CONDITION = " op.object_id IS NULL AND op.content_type_id IS NULL "
 
 DEFAULT_ROLE = 1
-
-OWNER_VALUES_TO_SAVE_FOR_HISTORY = (
-    'content_type_id', 'object_id', 'owner_content_type_id',
-    'owner_object_id', 'permission_id', 'responsible_id', 'roles',
-)
-GENERIC_GROUP_VALUES_TO_SAVE_FOR_HISTORY = (
-    'user_id', 'roles', 'group_id', 'group_content_type_id', 'responsible_id'
-)
-REASON_VALIDATION_ERROR = 'You should point the reason for this action'
 
 
 def get_permission_owners_query():

@@ -45,7 +45,7 @@ class UserGroupManager(models.Manager):
             )
             if not created and utg.roles != roles:
                 utg.roles |= roles
-                utg.save()
+                utg.save(reason, initiator)
 
     def remove(self, group, reason, roles=None, initiator=None):
         GenericUserToGroup = apps.get_model('protector', 'GenericUserToGroup')
@@ -61,7 +61,7 @@ class UserGroupManager(models.Manager):
             utg.delete(reason, initiator)
         else:
             utg.roles &= ~roles
-            utg.save()
+            utg.save(reason, initiator)
 
     def get_queryset(self, group_type=None):
         GenericUserToGroup = apps.get_model('protector', 'GenericUserToGroup')
@@ -114,7 +114,7 @@ class GroupUserManager(models.Manager):
             )
             if not created:
                 gug.roles |= roles
-                gug.save()
+                gug.save(reason, initiator)
 
     def remove(self, user, reason, roles=None, initiator=None):
         GenericUserToGroup = apps.get_model('protector', 'GenericUserToGroup')
@@ -131,7 +131,7 @@ class GroupUserManager(models.Manager):
             utg.delete(reason, initiator)
         else:
             utg.roles &= ~roles
-            utg.save()
+            utg.save(reason, initiator)
 
     def by_role(self, roles):
         links = self.instance.users_relations.all()
@@ -181,12 +181,10 @@ class OwnerPermissionManager(models.Manager):
             kwargs['content_type'] = None
 
         OwnerToPermission = apps.get_model('protector', 'OwnerToPermission')
-        otp, created = OwnerToPermission.objects.get_or_create(
-            **kwargs
-        )
+        otp, created = OwnerToPermission.objects.get_or_create(**kwargs)
         if not created and otp.roles != roles:
             otp.roles |= roles
-            otp.save()
+            otp.save(reason, initiator)
 
     def remove(self, perm, reason, obj=None, roles=None, initiator=None):
         if obj is None:
@@ -214,4 +212,4 @@ class OwnerPermissionManager(models.Manager):
             otp.delete(reason, initiator)
         else:
             otp.roles &= ~roles
-            otp.save()
+            otp.save(reason, initiator)

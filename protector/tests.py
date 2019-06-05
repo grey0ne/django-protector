@@ -1,8 +1,10 @@
 from django.test import TestCase
+from django.db import IntegrityError
 from django.contrib.auth.models import Permission
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.test.utils import override_settings
+from protector.exceptions import NoReasonSpecified, ImproperInitiatorInstancePassed
 from protector.models import (
     GenericGlobalPerm,
     OwnerToPermission,
@@ -335,12 +337,12 @@ class GenericObjectRestrictionTest(TestCase):
             utg_qset.by_role(ROLE2).count(), 1
         )
         self.group2.users.add(self.user2, TEST_REASON, initiator=self.initiator_user, roles=ROLE3)
-        # history count isn't increased as we just update roles
+        # update history record
         self.assertEquals(
             utg_qset.by_role(ROLE2).count(), 1
         )
         self.user2.groups.remove(self.group2, TEST_REASON, initiator=self.initiator_user, roles=ROLE2)
-        # same reason why no increase
+        # update history record
         self.assertEquals(
             utg_qset.by_role(ROLE2).count(), 0
         )
@@ -353,7 +355,16 @@ class GenericObjectRestrictionTest(TestCase):
             utg_qset.by_role(ROLE3).count(), 0
         )
         self.assertEqual(self.HistoryOwnerToPermission.objects.count(), 0)
-        self.assertEqual(self.HistoryGenericUserToGroup.objects.count(), 2)
+        all_hist_records = self.HistoryGenericUserToGroup.objects.all()
+        self.assertEqual(
+            all_hist_records.filter(change_type=self.HistoryGenericUserToGroup.TYPE_CHANGE).count(), 2
+        )
+        self.assertEqual(
+            all_hist_records.filter(change_type=self.HistoryGenericUserToGroup.TYPE_ADD).count(), 1
+        )
+        self.assertEqual(
+            all_hist_records.filter(change_type=self.HistoryGenericUserToGroup.TYPE_REMOVE).count(), 1
+        )
 
     def test_permissioned_manager(self):
         groups = self.TestGroup.by_perm.filter_by_permission(
@@ -503,8 +514,6 @@ class GenericObjectRestrictionTest(TestCase):
         )
 
     def test_no_owner_duplicates_allowed(self):
-        from django.core.exceptions import ValidationError
-        from django.db import IntegrityError
         create_test_dict = {
             'owner': self.user,
             'permission': self.permission,
@@ -513,7 +522,7 @@ class GenericObjectRestrictionTest(TestCase):
         try:
             # Intentionally forgetting to point reason
             OwnerToPermission.objects.create(owner=self.user, permission=self.permission)
-        except ValidationError:
+        except NoReasonSpecified:
             pass
         OwnerToPermission.objects.create(**create_test_dict)
         try:
@@ -542,3 +551,131 @@ class GenericObjectRestrictionTest(TestCase):
         self.assertEqual(created, True)
         self.assertEqual(OwnerToPermission.objects.count(), 2)
         self.assertEqual(self.HistoryOwnerToPermission.objects.count(), 2)
+
+    def test_otp_redefined_manager_methods(self):
+        otp = OwnerToPermission.objects.create(permission=self.permission, owner=self.user, reason=TEST_REASON)
+        self.assertEqual(
+            self.HistoryOwnerToPermission.objects.filter(change_type=self.HistoryOwnerToPermission.TYPE_ADD).count(),
+            self.HistoryOwnerToPermission.objects.count()
+        )
+
+        # model delete method
+        self.assertRaises(NoReasonSpecified, otp.delete)
+        delete_result = otp.delete(reason=TEST_REASON)
+        self.assertTrue(isinstance(delete_result, tuple))
+        self.assertEqual(delete_result[0], 1)
+        self.assertEqual(
+            self.HistoryOwnerToPermission.objects.filter(change_type=self.HistoryOwnerToPermission.TYPE_ADD).count(),
+            self.HistoryOwnerToPermission.objects.filter(change_type=self.HistoryOwnerToPermission.TYPE_REMOVE).count(),
+        )
+
+        # model save method
+        otp = OwnerToPermission(permission=self.permission, owner=self.user, content_object=self.group)
+        self.assertRaises(NoReasonSpecified, otp.save)
+        otp.save(reason=TEST_REASON, initiator=self.user2)
+        self.assertEqual(
+            self.HistoryOwnerToPermission.objects.filter(change_type=self.HistoryOwnerToPermission.TYPE_ADD).count(), 2
+        )
+        # role change
+        self.assertEqual(
+            self.HistoryOwnerToPermission.objects.filter(change_type=self.HistoryOwnerToPermission.TYPE_CHANGE).count(),
+            0
+        )
+        otp.roles = 2
+        otp.save(reason=TEST_REASON)
+        self.assertEqual(
+            self.HistoryOwnerToPermission.objects.filter(change_type=self.HistoryOwnerToPermission.TYPE_CHANGE).count(),
+            1
+        )
+
+        # manager delete method
+
+        self.assertRaises(NoReasonSpecified, OwnerToPermission.objects.all().delete)
+        try:
+            OwnerToPermission.objects.all().delete(reason=TEST_REASON, initiator=self.group)
+        except ImproperInitiatorInstancePassed:
+            pass
+        OwnerToPermission.objects.all().delete(reason=TEST_REASON, initiator=self.user)
+        self.assertEqual(self.HistoryOwnerToPermission.objects.count(), 5)
+        self.assertEqual(
+            self.HistoryOwnerToPermission.objects.filter(change_type=self.HistoryOwnerToPermission.TYPE_REMOVE).count(),
+            2
+        )
+
+        # manager bulk_create
+        otps_to_create = [
+            OwnerToPermission(permission=self.permission, owner=self.user),
+            OwnerToPermission(permission=self.permission2, owner=self.user2),
+            OwnerToPermission(permission=self.permission, owner=self.user2, content_object=self.group),
+        ]
+        OwnerToPermission.objects.bulk_create(otps_to_create, reason=TEST_REASON, initiator=self.user)
+        self.assertEqual(OwnerToPermission.objects.count(), 3)
+        self.assertEqual(
+            self.HistoryOwnerToPermission.objects.filter(
+                change_type=self.HistoryOwnerToPermission.TYPE_ADD,
+                initiator=self.user,
+            ).count(), 3
+        )
+
+    def test_gug_redefined_manager_methods(self):
+        gug = GenericUserToGroup.objects.create(group=self.group, user=self.user, reason=TEST_REASON)
+        self.assertEqual(
+            self.HistoryGenericUserToGroup.objects.filter(change_type=self.HistoryGenericUserToGroup.TYPE_ADD).count(),
+            self.HistoryGenericUserToGroup.objects.count()
+        )
+
+        # model delete method
+        self.assertRaises(NoReasonSpecified, gug.delete)
+        delete_result = gug.delete(reason=TEST_REASON)
+        self.assertTrue(isinstance(delete_result, tuple))
+        self.assertEqual(delete_result[0], 1)
+        self.assertEqual(
+            self.HistoryGenericUserToGroup.objects.filter(change_type=self.HistoryGenericUserToGroup.TYPE_ADD).count(),
+            self.HistoryGenericUserToGroup.objects.filter(change_type=self.HistoryGenericUserToGroup.TYPE_REMOVE).count(),
+        )
+
+        # model save method
+        gug = GenericUserToGroup(group=self.group2, user=self.user2)
+        self.assertRaises(NoReasonSpecified, gug.save)
+        gug.save(reason=TEST_REASON, initiator=self.user2)
+        self.assertEqual(
+            self.HistoryGenericUserToGroup.objects.filter(change_type=self.HistoryGenericUserToGroup.TYPE_ADD).count(), 2
+        )
+        # role change
+        self.assertEqual(
+            self.HistoryGenericUserToGroup.objects.filter(change_type=self.HistoryGenericUserToGroup.TYPE_CHANGE).count(), 0
+        )
+        gug.roles = 2
+        gug.save(reason=TEST_REASON)
+        self.assertEqual(
+            self.HistoryGenericUserToGroup.objects.filter(change_type=self.HistoryGenericUserToGroup.TYPE_CHANGE).count(), 1
+        )
+
+        # manager delete method
+
+        self.assertRaises(NoReasonSpecified, GenericUserToGroup.objects.all().delete)
+        try:
+            GenericUserToGroup.objects.all().delete(reason=TEST_REASON, initiator=self.group)
+        except ImproperInitiatorInstancePassed:
+            pass
+        GenericUserToGroup.objects.all().delete(reason=TEST_REASON, initiator=self.user)
+        self.assertEqual(self.HistoryGenericUserToGroup.objects.count(), 5)
+        self.assertEqual(
+            self.HistoryGenericUserToGroup.objects.filter(change_type=self.HistoryGenericUserToGroup.TYPE_REMOVE).count(), 2
+        )
+
+        # manager bulk_create
+        gugs_to_create = [
+            GenericUserToGroup(group=self.group2, user=self.user2),
+            GenericUserToGroup(group=self.group, user=self.user),
+            GenericUserToGroup(group=self.group, user=self.user2, responsible=self.user),
+        ]
+        GenericUserToGroup.objects.bulk_create(gugs_to_create, reason=TEST_REASON, initiator=self.user)
+        self.assertEqual(GenericUserToGroup.objects.count(), 3)
+        self.assertEqual(
+            self.HistoryGenericUserToGroup.objects.filter(
+                change_type=self.HistoryGenericUserToGroup.TYPE_ADD,
+                initiator=self.user,
+            ).count(), 3
+        )
+

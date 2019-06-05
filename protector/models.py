@@ -1,11 +1,8 @@
 # -*- coding: utf-8 -*-
-import copy
 from django.db import models, IntegrityError
 from django.conf import settings
-from django.core.exceptions import PermissionDenied, ValidationError
-from django.core.validators import MinLengthValidator
+from django.core.exceptions import PermissionDenied
 from django.contrib import auth
-from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericRelation, GenericForeignKey
@@ -18,10 +15,9 @@ from protector.internals import (
     VIEW_PERMISSION_NAME,
     VIEW_GENERIC_GROUP_HISTORY,
     VIEW_OWNER_TO_PERM_HISTORY,
-    OWNER_VALUES_TO_SAVE_FOR_HISTORY,
-    GENERIC_GROUP_VALUES_TO_SAVE_FOR_HISTORY,
+    get_user_ctype,
 )
-from protector.helpers import get_view_permission
+from protector.helpers import get_view_permission, reason_initiator_checks
 from protector.managers import (
     GenericUserToGroupManager,
     OwnerToPermissionManager,
@@ -31,6 +27,7 @@ from protector.managers import (
     RestrictedManager,
     GenericGroupManager,
 )
+from protector.reserved_reasons import MEMBER_FK_UPDATE_REASON
 
 
 #  Form a from clause for all permission related to their owners
@@ -103,10 +100,7 @@ class AbstractBaseHistory(models.Model):
         on_delete=models.CASCADE,
         blank=True, null=True
     )
-    reason = models.TextField(
-        verbose_name=_('change reason'),
-        validators=[MinLengthValidator(1)]
-    )
+    reason = models.TextField(verbose_name=_('change reason'), blank=False, null=False)
     changed_at = models.DateTimeField(
         _('change date'), auto_now_add=True
     )
@@ -143,6 +137,8 @@ class GenericUserToGroup(AbstractGenericUserToGroup):
     """
     date_joined = models.DateTimeField(verbose_name=_('date joined'), auto_now_add=True)
 
+    FIELDS_TO_IGNORE_FOR_HISTORY = ('id', 'date_joined', 'group',)
+
     objects = GenericUserToGroupManager()
 
     class Meta:
@@ -158,31 +154,50 @@ class GenericUserToGroup(AbstractGenericUserToGroup):
             username=self.user.username
         )
 
-    def delete(self, reason, initiator=None):
-        if initiator and not isinstance(initiator, get_user_model()):
-            raise ValidationError('Initiator should be an instance of User model')
-        if not isinstance(reason, str) or not len(reason):
-            raise ValidationError('You should point the reason for this action')
-
-        history_dict = {
-            key: value for key, value in self.__dict__.items() if key in GENERIC_GROUP_VALUES_TO_SAVE_FOR_HISTORY
+    def values_to_save_for_history(self):
+        # for related fields we want them to end on _id for more accurate perfomance
+        fields_to_save = [
+            f.name + '_id' if f.related_model else f.name for f in self._meta.get_fields()
+            if f.name not in self.FIELDS_TO_IGNORE_FOR_HISTORY
+        ]
+        return {
+            model_key: model_value for model_key, model_value in self.__dict__.items()
+            if model_key in fields_to_save
         }
+
+    def delete(self, reason='', initiator=None):
+        reason_initiator_checks(reason, initiator)
+        history_dict = self.values_to_save_for_history()
         history_dict.update({
             'initiator': initiator,
             'reason': reason,
             'change_type': HistoryGenericUserToGroup.TYPE_REMOVE,
         })
         HistoryGenericUserToGroup.objects.create(**history_dict)
-        super(GenericUserToGroup, self).delete()
+        return super(GenericUserToGroup, self).delete()
+
+    def save(self, reason='', initiator=None, *args, **kwargs):
+        reason_initiator_checks(reason, initiator)
+        model_fields = self.values_to_save_for_history()
+        model_fields.update({
+            'reason': reason,
+            'initiator': initiator,
+            'change_type': HistoryGenericUserToGroup.TYPE_ADD if not self.pk else HistoryGenericUserToGroup.TYPE_CHANGE,
+        })
+
+        HistoryGenericUserToGroup.objects.create(**model_fields)
+        super(GenericUserToGroup, self).save(*args, **kwargs)
 
 
 class HistoryGenericUserToGroup(AbstractBaseHistory, AbstractGenericUserToGroup):
     TYPE_ADD = 1
     TYPE_REMOVE = 2
+    TYPE_CHANGE = 3
 
     CHANGE_TYPES = (
         (TYPE_ADD, 'add user to group'),
         (TYPE_REMOVE, 'remove user from group'),
+        (TYPE_CHANGE, 'role changes')
     )
 
     change_type = models.SmallIntegerField(
@@ -196,7 +211,7 @@ class HistoryGenericUserToGroup(AbstractBaseHistory, AbstractGenericUserToGroup)
             (VIEW_GENERIC_GROUP_HISTORY, _('view generic group history')),
         )
 
-    def __str__(self):
+    def __unicode__(self):
         return '{history_id} | initiated by {initiator}, action: {action_type} | {group_name} {group_id}'.format(
             history_id=self.id,
             initiator=self.initiator.username if self.initiator else '',
@@ -215,6 +230,8 @@ class OwnerToPermission(AbstractOwnerToPermission):
     """
     ADD_PERMISSION = ADD_PERMISSION_PERMISSION
     date_issued = models.DateTimeField(verbose_name=_('date issued'), auto_now_add=True)
+
+    FIELDS_TO_IGNORE_FOR_HISTORY = ('id', 'date_issued', 'owner', 'content_object',)
 
     objects = OwnerToPermissionManager()
 
@@ -254,51 +271,69 @@ class OwnerToPermission(AbstractOwnerToPermission):
         result += "Permission {perm}".format(perm=self.permission.codename)
         return result
 
-    def __init__(self, *args, **kwargs):
-        # This is made for cases when object_id or content_type are None,
-        # as db engines do not take into account NULL fields when talking about uniqueness.
-        # As a drawback, we restrict creating in-memory objects that are already stored in db
-        if kwargs:
-            filter_kwargs = copy.deepcopy(kwargs)
-            # this is made to avoid not generated reverse relation error on filter
-            if 'owner' in kwargs:
-                del filter_kwargs['owner']
-                filter_kwargs['owner_content_type_id'] = ContentType.objects.get_for_model(kwargs['owner']).id
-                filter_kwargs['owner_object_id'] = kwargs['owner'].id
-            if 'content_object' in kwargs:
-                del filter_kwargs['content_object']
-                filter_kwargs['content_type_id'] = ContentType.objects.get_for_model(kwargs['content_object']).id
-                filter_kwargs['object_id'] = kwargs['content_object'].id
-
-            if OwnerToPermission.objects.filter(**filter_kwargs).exists():
-                raise IntegrityError('Duplicate with kwargs: {}'.format(kwargs))
-        super(OwnerToPermission, self).__init__(*args, **kwargs)
-
-    def delete(self, reason, initiator=None):
-        if initiator and not isinstance(initiator, get_user_model()):
-            raise ValidationError('Initiator should be an instance of User model')
-        if not isinstance(reason, str) or not len(reason):
-            raise ValidationError('You should point the reason for this action')
-
-        history_dict = {
-            key: value for key, value in self.__dict__.items() if key in OWNER_VALUES_TO_SAVE_FOR_HISTORY
+    def values_to_save_for_history(self):
+        # for related fields we want them to end on _id for more accurate perfomance
+        fields_to_save = [
+            f.name + '_id' if f.related_model else f.name for f in self._meta.get_fields()
+            if f.name not in self.FIELDS_TO_IGNORE_FOR_HISTORY
+        ]
+        return {
+            model_key: model_value for model_key, model_value in self.__dict__.items()
+            if model_key in fields_to_save
         }
+
+    def delete(self, reason='', initiator=None):
+        reason_initiator_checks(reason, initiator)
+
+        history_dict = self.values_to_save_for_history()
         history_dict.update({
             'initiator': initiator,
             'reason': reason,
             'change_type': HistoryOwnerToPermission.TYPE_REMOVE,
         })
         HistoryOwnerToPermission.objects.create(**history_dict)
-        super(OwnerToPermission, self).delete()
+        return super(OwnerToPermission, self).delete()
+
+    def save(self, reason='', initiator=None, *args, **kwargs):
+        # This is made for cases when object_id or content_type are None,
+        # as db engines do not take into account NULL fields when talking about uniqueness.
+        reason_initiator_checks(reason, initiator)
+        model_fields = self.values_to_save_for_history()
+
+        if OwnerToPermission.objects.filter(**model_fields).exists():
+            raise IntegrityError('Duplicate with kwargs: {}'.format(model_fields))
+
+        model_fields.update({
+            'reason': reason,
+            'initiator': initiator,
+            'change_type': HistoryOwnerToPermission.TYPE_ADD if not self.pk else HistoryOwnerToPermission.TYPE_CHANGE,
+        })
+        HistoryOwnerToPermission.objects.create(**model_fields)
+
+        if self.owner_content_type == get_user_ctype():
+            # Here is a bit of denormalization
+            # User is a part of group of his own
+            # This is done to drastically improve perm checking performance
+            GenericUserToGroup.objects.get_or_create(
+                reason=reason, initiator=initiator,
+                group_id=self.owner_object_id,
+                group_content_type=self.owner_content_type,
+                user_id=self.owner_object_id,
+                roles=1
+            )
+
+        super(OwnerToPermission, self).save(*args, **kwargs)
 
 
 class HistoryOwnerToPermission(AbstractBaseHistory, AbstractOwnerToPermission):
     TYPE_ADD = 1
     TYPE_REMOVE = 2
+    TYPE_CHANGE = 3
 
     CHANGE_TYPES = (
         (TYPE_ADD, 'add permission'),
         (TYPE_REMOVE, 'remove permission'),
+        (TYPE_CHANGE, 'role changes'),
     )
 
     change_type = models.SmallIntegerField(
@@ -312,8 +347,8 @@ class HistoryOwnerToPermission(AbstractBaseHistory, AbstractOwnerToPermission):
             (VIEW_OWNER_TO_PERM_HISTORY, _('view owner to permission history')),
         )
 
-    def __str__(self):
-        return '{history_id} | initiated by {initiator},' \
+    def __unicode__(self):
+        return '{history_id} | initiated by {initiator}, ' \
                'action: {action_type} | {group_name} {group_id} for perm {permission}'.format(
                     history_id=self.id,
                     initiator=self.initiator.username if self.initiator else '',
@@ -445,7 +480,7 @@ class AbstractGenericGroup(GenericPermsMixin):
 
     def _update_member_foreign_key(self):
         for field, roles in self.MEMBER_FOREIGN_KEY_FIELDS:
-            self.users.add(getattr(self, field), 'MODEL UPDATE REASON', roles=roles)
+            self.users.add(getattr(self, field), MEMBER_FK_UPDATE_REASON, roles=roles)
 
     def get_roles(self, user):
         try:

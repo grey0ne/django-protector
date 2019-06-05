@@ -141,3 +141,26 @@ Like so::
 MEMBER_FOREIGN_KEY_FIELDS defines which foreign key gets which role.
 
 Notice: This is accomplished via some denormalization and works through create, save and update model and manager methods overloading
+
+CAUTION BEFORE UPDATE:
+------------------------------
+Most of new history features now require an obligatory reason field and situational
+initiator of an action.
+
+E.g. Instead of::
+
+    otp = OwnerToPermission(...)
+    otp.save()
+
+Now you will have to point the reason(any string field) for this action::
+
+    otp = OwnerToPermission(...)
+    otp.save(reason='Reason for save', initiator=any_user_object)
+
+No worries if you will forget to indicate one, in most of manager and model methods
+such situations are handled with custom exceptions, except for update method, which
+was missed due to perfomance purposes, as in most of the cases only creation/deletion is required.
+
+One another warning. DB engines do not take into account uniqueness of null fields, so
+in create/save/delete methods such kind of situation is also handled. But be careful with
+duplicates in your OwnerToPermission table when using bulk_create and update.

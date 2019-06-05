@@ -3,17 +3,14 @@ from django.db.models.query import QuerySet
 from django.db.models import F
 from django.apps import apps
 from django.contrib.contenttypes.models import ContentType
-from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
+from protector.exceptions import NoReasonSpecified, ImproperInitiatorInstancePassed
 from protector.internals import (
     VIEW_PERMISSION_NAME,
-    OWNER_VALUES_TO_SAVE_FOR_HISTORY,
-    GENERIC_GROUP_VALUES_TO_SAVE_FOR_HISTORY,
-    REASON_VALIDATION_ERROR,
     _get_restriction_filter,
-    get_user_ctype,
 )
-from protector.helpers import filter_queryset_by_permission, get_view_permission
+from protector.helpers import filter_queryset_by_permission, get_view_permission, reason_initiator_checks
+from protector.reserved_reasons import GENERIC_GROUP_UPDATE_REASON
 
 
 class PermissionQuerySet(QuerySet):
@@ -32,14 +29,13 @@ class GenericUserToGroupQuerySet(QuerySet):
             params=[roles]
         )
 
-    def delete(self, reason, initiator=None):
+    def delete(self, reason='', initiator=None):
         histories_to_create = list()
         HistoryGenericUserToGroup = apps.get_model('protector', 'HistoryGenericUserToGroup')
 
-        if not isinstance(reason, str) or not len(reason):
-            raise ValidationError(REASON_VALIDATION_ERROR)
+        reason_initiator_checks(reason, initiator)
 
-        objs_to_delete = self.values(*GENERIC_GROUP_VALUES_TO_SAVE_FOR_HISTORY)
+        objs_to_delete = self.values(*self.model().values_to_save_for_history().keys())
 
         for obj in objs_to_delete:
             obj.update({
@@ -51,38 +47,57 @@ class GenericUserToGroupQuerySet(QuerySet):
 
         HistoryGenericUserToGroup.objects.bulk_create(histories_to_create)
 
-        super(GenericUserToGroupQuerySet, self).delete()
+        return super(GenericUserToGroupQuerySet, self).delete()
 
-    def create(self, **kwargs):
-        if 'initiator' in kwargs:
-            if not kwargs['initiator']:
-                del kwargs['initiator']
-            elif not isinstance(kwargs['initiator'], get_user_model()):
-                raise ValidationError('Initiator is not an instance of user model')
-
-        if 'reason' not in kwargs or not len(kwargs['reason']) or not isinstance(kwargs['reason'], str):
-            raise ValidationError(REASON_VALIDATION_ERROR)
+    def bulk_create(self, objs, reason='', initiator=None, batch_size=None):
+        reason_initiator_checks(reason, initiator)
 
         HistoryGenericUserToGroup = apps.get_model('protector', 'HistoryGenericUserToGroup')
 
-        history_kwargs = deepcopy(kwargs)
-        history_kwargs.update({'change_type': HistoryGenericUserToGroup.TYPE_ADD})
+        created_objs = super(GenericUserToGroupQuerySet, self).bulk_create(objs, batch_size=batch_size)
 
+        hist_objs = deepcopy(objs)
+        hist_objs_to_create = list()
+        for obj in hist_objs:
+            obj = obj.values_to_save_for_history()
+            obj.update({
+                'change_type': HistoryGenericUserToGroup.TYPE_ADD,
+                'initiator': initiator,
+                'reason': reason,
+            })
+            hist_objs_to_create.append(HistoryGenericUserToGroup(**obj))
+
+        HistoryGenericUserToGroup.objects.bulk_create(hist_objs_to_create, batch_size=batch_size)
+
+        return created_objs
+
+    def create(self, **kwargs):
+        if 'initiator' in kwargs and kwargs['initiator'] is not None:
+            if not isinstance(kwargs['initiator'], get_user_model()):
+                raise ImproperInitiatorInstancePassed
+        else:
+            kwargs['initiator'] = None
+
+        if 'reason' not in kwargs or not len(kwargs['reason']) or not isinstance(kwargs['reason'], basestring):
+            raise NoReasonSpecified
+
+        history_kwargs = deepcopy(kwargs)
         try:
             del kwargs['reason']
             if 'initiator' in kwargs:
                 del kwargs['initiator']
         except KeyError:
             pass
-        created_obj = super(GenericUserToGroupQuerySet, self).create(**kwargs)
-        HistoryGenericUserToGroup.objects.create(**history_kwargs)
 
-        return created_obj
+        obj = self.model(**kwargs)
+        self._for_write = True
+        obj.save(history_kwargs['reason'], history_kwargs['initiator'], force_insert=True, using=self.db)
+
+        return obj
 
     def get_or_create(self, defaults=None, **kwargs):
         if 'reason' not in kwargs:
-            raise ValidationError(u'Point out the reason in case creation occurs')
-
+            raise NoReasonSpecified(u'Point out the reason in case creation occurs')
         get_kwargs = deepcopy(kwargs)
         try:
             del get_kwargs['reason']
@@ -92,14 +107,109 @@ class GenericUserToGroupQuerySet(QuerySet):
             pass
         try:
             result = super(GenericUserToGroupQuerySet, self).get_or_create(defaults=defaults, **get_kwargs)
-        except ValidationError:
-            # in case there's no such record in db, create will raise Validation error
-            # due to absence reason fields.
-            # Here we explicitly create new record with such fields.
+        except NoReasonSpecified:
+            # in case there's no such record in db, create will raise NoReasonSpecified error
+            # due to absence of reason field.
+            # Here we explicitly create new record with such field.
             if defaults:
                 kwargs.update(defaults)
             result = self.create(**kwargs)
         return (result, True) if not isinstance(result, tuple) else result
+
+
+class OwnerToPermissionQuerySet(QuerySet):
+    def without_obj_perms(self):
+        return self.filter(
+            object_id__isnull=True,
+            content_type_id__isnull=True
+        )
+
+    def delete(self, reason='', initiator=None):
+        histories_to_create = list()
+        reason_initiator_checks(reason, initiator)
+
+        objs_to_delete = self.values(*self.model().values_to_save_for_history().keys())
+        HistoryOwnerToPermission = apps.get_model('protector', 'HistoryOwnerToPermission')
+
+        for obj in objs_to_delete:
+            obj.update({
+                'initiator': initiator,
+                'reason': reason,
+                'change_type': HistoryOwnerToPermission.TYPE_REMOVE,
+            })
+            histories_to_create.append(HistoryOwnerToPermission(**obj))
+
+        HistoryOwnerToPermission.objects.bulk_create(histories_to_create)
+
+        return super(OwnerToPermissionQuerySet, self).delete()
+
+    def create(self, **kwargs):
+        if 'initiator' in kwargs and kwargs['initiator'] is not None:
+            if not isinstance(kwargs['initiator'], get_user_model()):
+                raise ImproperInitiatorInstancePassed
+        else:
+            kwargs['initiator'] = None
+
+        if 'reason' not in kwargs or not len(kwargs['reason']) or not isinstance(kwargs['reason'], basestring):
+            raise NoReasonSpecified
+
+        history_kwargs = deepcopy(kwargs)
+        try:
+            del kwargs['reason']
+            if 'initiator' in kwargs:
+                del kwargs['initiator']
+        except KeyError:
+            pass
+
+        obj = self.model(**kwargs)
+        self._for_write = True
+        obj.save(history_kwargs['reason'], history_kwargs['initiator'], force_insert=True, using=self.db)
+
+        return obj
+
+    def get_or_create(self, defaults=None, **kwargs):
+        if 'reason' not in kwargs:
+            raise NoReasonSpecified(u'Point out the reason in case creation occurs')
+
+        get_kwargs = deepcopy(kwargs)
+        try:
+            del get_kwargs['reason']
+            if 'initiator' in kwargs:
+                del get_kwargs['initiator']
+        except KeyError:
+            pass
+        try:
+            result = super(OwnerToPermissionQuerySet, self).get_or_create(defaults=defaults, **get_kwargs)
+        except NoReasonSpecified:
+            # in case there's no such record in db, create will raise NoReasonSpecified error
+            # due to absence of reason field.
+            # Here we explicitly create new record with such field.
+            if defaults:
+                kwargs.update(defaults)
+            result = self.create(**kwargs)
+        return (result, True) if not isinstance(result, tuple) else result
+
+    def bulk_create(self, objs, reason='', initiator=None, batch_size=None):
+        reason_initiator_checks(reason, initiator)
+
+        HistoryOwnerToPermission = apps.get_model('protector', 'HistoryOwnerToPermission')
+
+        created_objs = super(OwnerToPermissionQuerySet, self).bulk_create(objs, batch_size=batch_size)
+
+        hist_objs = deepcopy(objs)
+        hist_objs_to_create = list()
+        for obj in hist_objs:
+            obj = obj.values_to_save_for_history()
+            obj.update({
+                'change_type': HistoryOwnerToPermission.TYPE_ADD,
+                'initiator': initiator,
+                'reason': reason,
+            })
+            hist_objs_to_create.append(HistoryOwnerToPermission(**obj))
+
+        HistoryOwnerToPermission.objects.bulk_create(hist_objs_to_create, batch_size=batch_size)
+
+        return created_objs
 
 
 class RestrictedQuerySet(PermissionQuerySet):
@@ -124,100 +234,6 @@ class RestrictedQuerySet(PermissionQuerySet):
         condition += _get_restriction_filter(self, user_id, perm_id)
         condition = condition.format(table_name=self.model._meta.db_table)
         return condition
-
-
-class OwnerToPermissionQuerySet(QuerySet):
-    def without_obj_perms(self):
-        return self.filter(
-            object_id__isnull=True,
-            content_type_id__isnull=True
-        )
-
-    def delete(self, reason, initiator=None):
-        histories_to_create = list()
-
-        if not isinstance(reason, str) or not len(reason):
-            raise ValidationError(REASON_VALIDATION_ERROR)
-
-        objs_to_delete = self.values(*OWNER_VALUES_TO_SAVE_FOR_HISTORY)
-        HistoryOwnerToPermission = apps.get_model('protector', 'HistoryOwnerToPermission')
-
-        for obj in objs_to_delete:
-            obj.update({
-                'initiator': initiator,
-                'reason': reason,
-                'change_type': HistoryOwnerToPermission.TYPE_REMOVE,
-            })
-            histories_to_create.append(HistoryOwnerToPermission(**obj))
-
-        HistoryOwnerToPermission.objects.bulk_create(histories_to_create)
-
-        super(OwnerToPermissionQuerySet, self).delete()
-
-    def create(self, **kwargs):
-        if 'initiator' in kwargs:
-            if not kwargs['initiator']:
-                del kwargs['initiator']
-            elif not isinstance(kwargs['initiator'], get_user_model()):
-                raise ValidationError('Initiator is not an instance of user model')
-
-        if 'reason' not in kwargs or not len(kwargs['reason']) or not isinstance(kwargs['reason'], str):
-            raise ValidationError(REASON_VALIDATION_ERROR)
-
-        HistoryOwnerToPermission = apps.get_model('protector', 'HistoryOwnerToPermission')
-
-        history_kwargs = deepcopy(kwargs)
-        history_kwargs.update({'change_type': HistoryOwnerToPermission.TYPE_ADD})
-
-        try:
-            del kwargs['reason']
-            if 'initiator' in kwargs:
-                del kwargs['initiator']
-        except KeyError:
-            pass
-        created_obj = super(OwnerToPermissionQuerySet, self).create(**kwargs)
-        HistoryOwnerToPermission.objects.create(**history_kwargs)
-
-        user_ctype = get_user_ctype()
-        if 'owner_content_type' in kwargs and kwargs['owner_content_type'] == user_ctype\
-                or 'owner_content_type_id' in kwargs and kwargs['owner_content_type_id'] == user_ctype.id:
-            # Here is a bit of denormalization
-            # User is a part of group of his own
-            # This is done to drastically improve perm checking performance
-            GenericUserToGroup = apps.get_model('protector', 'GenericUserToGroup')
-            GenericUserToGroup.objects.get_or_create(
-                reason=history_kwargs['reason'],
-                initiator=history_kwargs['initiator'] if 'initiator' in kwargs else None,
-                group_id=kwargs['owner_object_id'],
-                group_content_type_id=kwargs['owner_content_type'].id\
-                    if 'owner_content_type' in kwargs else kwargs['owner_content_type_id'],
-                user_id=kwargs['owner_object_id'],
-                roles=1
-            )
-
-        return created_obj
-
-    def get_or_create(self, defaults=None, **kwargs):
-        if 'reason' not in kwargs:
-            raise ValidationError(u'Point out the reason in case creation occurs')
-
-        get_kwargs = deepcopy(kwargs)
-        try:
-            del get_kwargs['reason']
-            if 'initiator' in kwargs:
-                del get_kwargs['initiator']
-        except KeyError:
-            pass
-        try:
-            result = super(OwnerToPermissionQuerySet, self).get_or_create(defaults=defaults, **get_kwargs)
-        except ValidationError:
-            # in case there's no such record in db, create will raise Validation error
-            # due to absence reason fields.
-            # Here we explicitly create new record with such fields.
-            if defaults:
-                kwargs.update(defaults)
-            result = self.create(**kwargs)
-        return (result, True) if not isinstance(result, tuple) else result
 
 
 class PermAnnotatedMixin(QuerySet):
@@ -257,7 +273,7 @@ class GenericGroupQuerySet(QuerySet):
                         responsible=kwargs[field], roles=roles
                     ))
         if links_to_create:
-            GenericUserToGroup.objects.bulk_create(links_to_create)
+            GenericUserToGroup.objects.bulk_create(links_to_create, reason=GENERIC_GROUP_UPDATE_REASON)
 
     def create(self, **kwargs):
         instance = super(GenericGroupQuerySet, self).create(**kwargs)
