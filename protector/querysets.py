@@ -4,6 +4,7 @@ from django.db.models import F
 from django.apps import apps
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth import get_user_model
+from past.builtins import basestring
 from protector.exceptions import NoReasonSpecified, ImproperInitiatorInstancePassed
 from protector.internals import (
     VIEW_PERMISSION_NAME,

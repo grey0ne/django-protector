@@ -145,7 +145,9 @@ Notice: This is accomplished via some denormalization and works through create, 
 CAUTION BEFORE UPDATE:
 ------------------------------
 Most of new history features now require an obligatory reason field and situational
-initiator of an action.
+initiator of an action. In manager's add methods responsible and initiator are considered as the same entities,
+so only the first one can be passed to function.
+On delete you have to indicate only the initiator of an action.
 
 E.g. Instead of::
 

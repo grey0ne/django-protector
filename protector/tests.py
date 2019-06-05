@@ -61,7 +61,7 @@ class GenericObjectRestrictionTest(TestCase):
             self.permission,
             TEST_REASON,
             obj=self.user2,
-            initiator=self.initiator_user,
+            responsible=self.initiator_user,
         )
         self.assertTrue(
             self.user.has_perm(self.permission_key, self.user2)
@@ -76,7 +76,7 @@ class GenericObjectRestrictionTest(TestCase):
         self.user.permissions.add(
             self.permission,
             TEST_REASON,
-            initiator=self.initiator_user,
+            responsible=self.initiator_user,
         )
         self.assertTrue(
             self.user.has_perm(self.permission_key, self.user2)
@@ -92,12 +92,12 @@ class GenericObjectRestrictionTest(TestCase):
             self.permission,
             TEST_REASON,
             obj=self.user,
-            initiator=self.initiator_user,
+            responsible=self.initiator_user,
         )
         self.group.users.add(
             self.user2,
             TEST_REASON,
-            initiator=self.initiator_user,
+            responsible=self.initiator_user,
         )
         self.assertTrue(
             self.user2.has_perm(self.permission_key, self.user)
@@ -115,9 +115,9 @@ class GenericObjectRestrictionTest(TestCase):
         self.assertEqual(self.HistoryOwnerToPermission.objects.count(), 2)
 
     def test_group_perm(self):
-        self.user2.groups.add(self.group, TEST_REASON, initiator=self.initiator_user)
-        self.group.permissions.add(self.permission, TEST_REASON, initiator=self.initiator_user)
-        self.group.permissions.add(self.permission2, TEST_REASON, initiator=self.initiator_user)
+        self.user2.groups.add(self.group, TEST_REASON, responsible=self.initiator_user)
+        self.group.permissions.add(self.permission, TEST_REASON, responsible=self.initiator_user)
+        self.group.permissions.add(self.permission2, TEST_REASON, responsible=self.initiator_user)
         self.assertTrue(
             self.user2.has_perm(self.permission_key)
         )
@@ -147,7 +147,7 @@ class GenericObjectRestrictionTest(TestCase):
         )
         self.user.permissions.add(
             self.TestGroup.get_view_permission(),
-            TEST_REASON, initiator=self.initiator_user
+            TEST_REASON, responsible=self.initiator_user
         )
         self.assertEquals(
             self.TestGroup.objects.visible(self.user).count(), 2
@@ -160,7 +160,7 @@ class GenericObjectRestrictionTest(TestCase):
         )
         self.user2.permissions.add(
             self.TestGroup.get_view_permission(),
-            TEST_REASON, initiator=self.initiator_user,
+            TEST_REASON, responsible=self.initiator_user,
             obj=self.group2
         )
         qset = self.TestGroup.objects.visible(self.user2)
@@ -175,11 +175,11 @@ class GenericObjectRestrictionTest(TestCase):
         self.assertEquals(
             self.group.users.count(), 0
         )
-        self.group.users.add(self.user, TEST_REASON, initiator=self.initiator_user)
+        self.group.users.add(self.user, TEST_REASON, responsible=self.initiator_user)
         self.assertEquals(
             self.group.users.count(), 1
         )
-        self.group.users.add(self.user2, TEST_REASON, roles=DEFAULT+ROLE2, initiator=self.initiator_user)
+        self.group.users.add(self.user2, TEST_REASON, roles=DEFAULT+ROLE2, responsible=self.initiator_user)
 
         self.assertEquals(
             self.group.users.by_role(roles=DEFAULT).count(), 2
@@ -190,7 +190,7 @@ class GenericObjectRestrictionTest(TestCase):
         self.assertEquals(
             self.group.users.by_role(roles=ROLE3).count(), 0
         )
-        self.group.users.add(self.user3, TEST_REASON, initiator=self.initiator_user, roles=ROLE3)
+        self.group.users.add(self.user3, TEST_REASON, responsible=self.initiator_user, roles=ROLE3)
         self.assertEquals(
             self.group.users.by_role(roles=ROLE2+ROLE3).count(), 2
         )
@@ -202,8 +202,8 @@ class GenericObjectRestrictionTest(TestCase):
     def test_content_type_perm(self):
         DEFAULT = 1
         ROLE2 = 2
-        self.group.users.add(self.user2, TEST_REASON, initiator=self.initiator_user, roles=ROLE2)
-        self.group.users.add(self.user, TEST_REASON, initiator=self.initiator_user, roles=DEFAULT)
+        self.group.users.add(self.user2, TEST_REASON, responsible=self.initiator_user, roles=ROLE2)
+        self.group.users.add(self.user, TEST_REASON, responsible=self.initiator_user, roles=DEFAULT)
         self.assertFalse(
             self.user2.has_perm(self.permission2_key, self.group)
         )
@@ -231,8 +231,8 @@ class GenericObjectRestrictionTest(TestCase):
             content_type=ContentType.objects.get_for_model(self.TestGroup),
             roles=ROLE2, permission=self.TestGroup.get_view_permission()
         )
-        self.group.users.add(self.user, TEST_REASON, initiator=self.initiator_user)
-        self.group2.users.add(self.user2, TEST_REASON, initiator=self.initiator_user, roles=ROLE2)
+        self.group.users.add(self.user, TEST_REASON, responsible=self.initiator_user)
+        self.group2.users.add(self.user2, TEST_REASON, responsible=self.initiator_user, roles=ROLE2)
         self.assertEquals(
             self.TestGroup.objects.visible(self.user2).count(), 2
         )
@@ -244,12 +244,12 @@ class GenericObjectRestrictionTest(TestCase):
     def test_all_permission_owners(self):
         self.user2.is_superuser = True
         self.user2.save()
-        self.user.permissions.add(self.permission, TEST_REASON, initiator=self.initiator_user)
+        self.user.permissions.add(self.permission, TEST_REASON, responsible=self.initiator_user)
         self.assertEquals(
             get_all_permission_owners(self.permission).count(), 1
         )
-        self.group.permissions.add(self.permission, TEST_REASON, initiator=self.initiator_user)
-        self.group.users.add(self.user2, TEST_REASON, initiator=self.initiator_user)
+        self.group.permissions.add(self.permission, TEST_REASON, responsible=self.initiator_user)
+        self.group.users.add(self.user2, TEST_REASON, responsible=self.initiator_user)
         self.assertEquals(
             get_all_permission_owners(self.permission).count(), 2
         )
@@ -307,7 +307,7 @@ class GenericObjectRestrictionTest(TestCase):
     def test_groups_by_ctype(self):
         DEFAULT = 1
         ROLE2 = 2
-        self.group2.users.add(self.user2, TEST_REASON, initiator=self.initiator_user, roles=DEFAULT)
+        self.group2.users.add(self.user2, TEST_REASON, responsible=self.initiator_user, roles=DEFAULT)
         self.assertEquals(
             self.user2.groups.by_ctype(
                 ContentType.objects.get_for_model(self.group2), DEFAULT
@@ -329,14 +329,14 @@ class GenericObjectRestrictionTest(TestCase):
         DEFAULT = 1
         ROLE2 = 2
         ROLE3 = 4
-        self.group2.users.add(self.user2, TEST_REASON, initiator=self.initiator_user, roles=ROLE2)
+        self.group2.users.add(self.user2, TEST_REASON, responsible=self.initiator_user, roles=ROLE2)
         self.assertEquals(
             utg_qset.by_role(DEFAULT).count(), 0
         )
         self.assertEquals(
             utg_qset.by_role(ROLE2).count(), 1
         )
-        self.group2.users.add(self.user2, TEST_REASON, initiator=self.initiator_user, roles=ROLE3)
+        self.group2.users.add(self.user2, TEST_REASON, responsible=self.initiator_user, roles=ROLE3)
         # update history record
         self.assertEquals(
             utg_qset.by_role(ROLE2).count(), 1
@@ -377,7 +377,7 @@ class GenericObjectRestrictionTest(TestCase):
             self.group2.get_view_permission(),
             TEST_REASON,
             self.group2,
-            initiator=self.initiator_user
+            responsible=self.initiator_user
         )
         self.assertEquals(
             groups.count(), 1
@@ -430,7 +430,7 @@ class GenericObjectRestrictionTest(TestCase):
             )), 0
         )
         self.user2.permissions.add(
-            self.TestGroup.get_view_permission(), TEST_REASON, self.group2, initiator=self.initiator_user
+            self.TestGroup.get_view_permission(), TEST_REASON, self.group2, responsible=self.initiator_user
         )
         self.assertEquals(
             filter_object_id_list(
@@ -443,7 +443,7 @@ class GenericObjectRestrictionTest(TestCase):
         self.assertFalse(
             is_user_having_perm_on_any_object(self.user, self.permission_key)
         )
-        self.user.permissions.add(self.permission, TEST_REASON, self.group2, initiator=self.initiator_user)
+        self.user.permissions.add(self.permission, TEST_REASON, self.group2, responsible=self.initiator_user)
         self.assertTrue(
             is_user_having_perm_on_any_object(self.user, self.permission_key)
         )
@@ -455,7 +455,7 @@ class GenericObjectRestrictionTest(TestCase):
         self.assertFalse(
             is_user_having_perm_on_any_object(self.user, self.permission_key)
         )
-        self.user.permissions.add(self.permission, TEST_REASON, initiator=self.initiator_user)
+        self.user.permissions.add(self.permission, TEST_REASON, responsible=self.initiator_user)
         self.assertTrue(
             is_user_having_perm_on_any_object(self.user, self.permission_key)
         )
@@ -475,7 +475,7 @@ class GenericObjectRestrictionTest(TestCase):
         self.assertFalse(
             check_single_permission(self.user, self.permission_key, self.group)
         )
-        self.user.permissions.add(self.permission, TEST_REASON, initiator=self.initiator_user)
+        self.user.permissions.add(self.permission, TEST_REASON, responsible=self.initiator_user)
         self.assertTrue(
             check_single_permission(self.user, self.permission_key, self.group)
         )
@@ -485,7 +485,7 @@ class GenericObjectRestrictionTest(TestCase):
         self.assertFalse(
             check_single_permission(self.user, self.permission_key, self.group)
         )
-        self.user.permissions.add(self.permission, TEST_REASON, obj=self.group, initiator=self.initiator_user)
+        self.user.permissions.add(self.permission, TEST_REASON, obj=self.group, responsible=self.initiator_user)
         self.assertTrue(
             check_single_permission(self.user, self.permission_key, self.group)
         )
