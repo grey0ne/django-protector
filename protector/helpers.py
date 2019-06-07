@@ -1,9 +1,11 @@
+from past.builtins import basestring
 from django.contrib.auth.models import Permission
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
 from django.db import connection
 from django.apps import apps
+from protector.exceptions import NoReasonSpecified, ImproperInitiatorInstancePassed
 from protector.query import Query
 from protector.internals import (
     get_permission_owners_query, _generate_filter_condition,
@@ -128,6 +130,13 @@ def get_view_permission():
             codename=codename, content_type=ctype
         )
     return _view_perm
+
+
+def reason_initiator_checks(reason, initiator):
+    if initiator is not None and not isinstance(initiator, get_user_model()):
+        raise ImproperInitiatorInstancePassed
+    if not isinstance(reason, basestring) or not len(reason):
+        raise NoReasonSpecified
 
 
 def is_user_having_perm_on_any_object(user, permission):
