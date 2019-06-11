@@ -79,7 +79,7 @@ class GenericUserToGroupQuerySet(QuerySet):
         else:
             kwargs['initiator'] = None
 
-        if 'reason' not in kwargs or not len(kwargs['reason']) or not isinstance(kwargs['reason'], basestring):
+        if 'reason' not in kwargs or not isinstance(kwargs['reason'], basestring) or not len(kwargs['reason']):
             raise NoReasonSpecified
 
         history_kwargs = deepcopy(kwargs)
@@ -151,7 +151,7 @@ class OwnerToPermissionQuerySet(QuerySet):
         else:
             kwargs['initiator'] = None
 
-        if 'reason' not in kwargs or not len(kwargs['reason']) or not isinstance(kwargs['reason'], basestring):
+        if 'reason' not in kwargs or not isinstance(kwargs['reason'], basestring) or not len(kwargs['reason']):
             raise NoReasonSpecified
 
         history_kwargs = deepcopy(kwargs)
