@@ -680,3 +680,21 @@ class GenericObjectRestrictionTest(TestCase):
             ).count(), 3
         )
 
+    def test_responsible_reason_decorator(self):
+        try:
+            GenericUserToGroup.objects.create(group=self.group, user=self.user, reason='')
+        except NoReasonSpecified:
+            pass
+        try:
+            OwnerToPermission.objects.get_or_create(owner=self.user, permission=self.permission, reason='', defaults={
+                'responsible': self.user2,
+            })
+        except NoReasonSpecified:
+            pass
+        try:
+            OwnerToPermission.objects.create(
+                owner=self.user, permission=self.permission, responsible=self.group,
+                reason=TEST_REASON,
+            )
+        except ImproperResponsibleInstancePassed:
+            pass
