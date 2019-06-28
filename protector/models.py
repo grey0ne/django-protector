@@ -8,7 +8,6 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericRelation, GenericForeignKey
 from django.utils.translation import ugettext_lazy as _
 from mptt.models import MPTTModel, TreeForeignKey
-from protector.utils import check_responsible_reason
 from protector.internals import (
     DEFAULT_ROLE,
     ADD_PERMISSION_PERMISSION,
@@ -18,7 +17,7 @@ from protector.internals import (
     VIEW_OWNER_TO_PERM_HISTORY,
     get_user_ctype,
 )
-from protector.helpers import get_view_permission
+from protector.helpers import get_view_permission, check_responsible_reason
 from protector.managers import (
     GenericUserToGroupManager,
     OwnerToPermissionManager,

@@ -10,8 +10,7 @@ from protector.internals import (
     VIEW_PERMISSION_NAME,
     _get_restriction_filter,
 )
-from protector.utils import check_responsible_reason
-from protector.helpers import filter_queryset_by_permission, get_view_permission
+from protector.helpers import filter_queryset_by_permission, get_view_permission, check_responsible_reason
 from protector.reserved_reasons import GENERIC_GROUP_UPDATE_REASON
 
 

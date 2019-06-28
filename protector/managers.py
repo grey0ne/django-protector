@@ -5,8 +5,7 @@ from django.contrib.auth import get_user_model
 from protector.querysets import GenericUserToGroupQuerySet, PermissionQuerySet, \
     RestrictedQuerySet, OwnerToPermissionQuerySet, GenericGroupQuerySet
 from protector.internals import get_default_group_ctype, DEFAULT_ROLE
-from protector.helpers import get_permission_id_by_name
-from protector.utils import check_responsible_reason
+from protector.helpers import get_permission_id_by_name, check_responsible_reason
 from past.builtins import basestring
 
 
