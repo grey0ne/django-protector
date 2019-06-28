@@ -21,7 +21,7 @@ _view_perm = None
 def check_responsible_reason(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        responsible = kwargs.get('responsible') or kwargs.get('responsible_id')
+        responsible = kwargs.get('responsible')
         reason = kwargs.get('reason') or (len(args) > 2 and args[2])
         if responsible is not None and not isinstance(responsible, get_user_model()):
             raise ImproperResponsibleInstancePassed
