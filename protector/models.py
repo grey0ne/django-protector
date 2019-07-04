@@ -477,7 +477,7 @@ class AbstractGenericGroup(GenericPermsMixin):
 
     def _update_member_foreign_key(self):
         for field, roles in self.MEMBER_FOREIGN_KEY_FIELDS:
-            self.users.add(getattr(self, field), MEMBER_FK_UPDATE_REASON, roles=roles)
+            self.users.add(getattr(self, field), MEMBER_FK_UPDATE_REASON(field), roles=roles)
 
     def get_roles(self, user):
         try:
