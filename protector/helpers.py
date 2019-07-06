@@ -1,19 +1,35 @@
 from past.builtins import basestring
+from functools import wraps
 from django.contrib.auth.models import Permission
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
 from django.db import connection
 from django.apps import apps
-from protector.exceptions import NoReasonSpecified, ImproperInitiatorInstancePassed
 from protector.query import Query
 from protector.internals import (
     get_permission_owners_query, _generate_filter_condition,
     _get_permission_filter, VIEW_RESTRICTED_OBJECTS, _get_permissions_query,
 )
 
+from protector.exceptions import NoReasonSpecified, ImproperResponsibleInstancePassed
+
 
 _view_perm = None
+
+
+def check_responsible_reason(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        responsible = kwargs.get('responsible')
+        reason = kwargs.get('reason') or (len(args) > 2 and args[2])
+        if responsible is not None and not isinstance(responsible, get_user_model()):
+            raise ImproperResponsibleInstancePassed
+        if not isinstance(reason, basestring) or not len(reason):
+            raise NoReasonSpecified
+
+        return func(*args, **kwargs)
+    return wrapper
 
 
 def get_all_permission_owners(permission, include_superuser=False, obj=None):
@@ -130,13 +146,6 @@ def get_view_permission():
             codename=codename, content_type=ctype
         )
     return _view_perm
-
-
-def reason_initiator_checks(reason, initiator):
-    if initiator is not None and not isinstance(initiator, get_user_model()):
-        raise ImproperInitiatorInstancePassed
-    if not isinstance(reason, basestring) or not len(reason):
-        raise NoReasonSpecified
 
 
 def is_user_having_perm_on_any_object(user, permission):
