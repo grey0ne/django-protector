@@ -309,11 +309,14 @@ class OwnerToPermission(AbstractOwnerToPermission):
             # User is a part of group of his own
             # This is done to drastically improve perm checking performance
             GenericUserToGroup.objects.get_or_create(
-                reason=kwargs.get('reason'), responsible=kwargs.get('responsible'),
+                reason=kwargs.get('reason'),
                 group_id=self.owner_object_id,
                 group_content_type=self.owner_content_type,
                 user_id=self.owner_object_id,
-                roles=1
+                roles=1,
+                defaults={
+                    'responsible': kwargs.get('responsible'),
+                }
             )
         try:
             del kwargs['reason']
