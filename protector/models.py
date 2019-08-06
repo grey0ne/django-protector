@@ -58,12 +58,12 @@ class AbstractGenericUserToGroup(models.Model):
 
 class AbstractOwnerToPermission(models.Model):
     object_id = models.PositiveIntegerField(
-        verbose_name=_('object id'), null=True
+        verbose_name=_('object id'), null=True, blank=True,
     )
     content_type = models.ForeignKey(
         verbose_name=_('object type'),
         to=ContentType, related_name='%(class)s_restriction_group_relations',
-        null=True,
+        null=True, blank=True,
         on_delete=models.CASCADE
     )
     content_object = GenericForeignKey('content_type', 'object_id')
@@ -669,7 +669,7 @@ class Restricted(models.Model):
         )
         if not created and otp.roles != roles:
             otp.roles |= roles
-            otp.save()
+            otp.save(reason=reason)
 
 
 class PermissionInfo(models.Model):

@@ -1,7 +1,17 @@
 # coding:utf-8
-from protector.models import Restriction, OwnerToPermission, \
-    GenericUserToGroup, GenericGlobalPerm, PermissionInfo
-from protector.admin_forms import PermissionModeratorForm
+from protector.models import (
+    Restriction,
+    OwnerToPermission,
+    GenericUserToGroup,
+    GenericGlobalPerm,
+    PermissionInfo,
+)
+from protector.reserved_reasons import ADMIN_PANEL_DELETE_REASON
+from protector.admin_forms import (
+    PermissionModeratorForm,
+    GenericUserToGroupForm,
+    OwnerToPermissionForm,
+)
 from django.contrib import admin
 from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.admin import GenericTabularInline
@@ -61,6 +71,7 @@ class GenericGroupAdminMixin(admin.ModelAdmin):
 
 class OwnerToPermissionAdmin(admin.ModelAdmin):
     save_as = True
+    form = OwnerToPermissionForm
     search_fields = ('permission__name', )
     list_filter = ('owner_content_type', )
     list_display = (
@@ -70,6 +81,13 @@ class OwnerToPermissionAdmin(admin.ModelAdmin):
     list_select_related = ('owner_content_type', 'content_type', 'permission')
     date_hierarchy = 'date_issued'
     raw_id_fields = ('owner_content_type', 'content_type', 'permission', 'responsible')
+
+    def save_model(self, request, obj, form, change):
+        reason = form.cleaned_data.get('reason')
+        obj.save(reason=reason)
+
+    def delete_model(self, request, obj):
+        obj.delete(reason=ADMIN_PANEL_DELETE_REASON(request.user))
 
 
 class PermissionObjectInline(GenericTabularInline):
@@ -105,10 +123,18 @@ class PermissionOwnerInline(GenericTabularInline):
 class GenericUserToGroupAdmin(admin.ModelAdmin):
     save_as = True
     search_fields = ('user__username', )
+    form = GenericUserToGroupForm
     list_display = ('group_content_type', 'group_id', 'user', 'roles', 'date_joined')
     list_filter = ('group_content_type', )
     date_hierarchy = 'date_joined'
     raw_id_fields = ('user', 'responsible', 'group_content_type')
+
+    def save_model(self, request, obj, form, change):
+        reason = form.cleaned_data.get('reason')
+        obj.save(reason=reason)
+
+    def delete_model(self, request, obj):
+        obj.delete(reason=ADMIN_PANEL_DELETE_REASON(request.user))
 
 
 class GenericGlobalPermAdmin(admin.ModelAdmin):
