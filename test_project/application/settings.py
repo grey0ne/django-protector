@@ -73,5 +73,5 @@ PROTECTOR_GENERIC_GROUP = 'test_app.TestGroup'
 
 AUTHENTICATION_BACKENDS = (
     'application.backends.TestBackend',
-    # 'django.contrib.auth.backends.ModelBackend',
+    'django.contrib.auth.backends.ModelBackend',
 )

@@ -1,3 +1,4 @@
+from past.builtins import basestring
 from django import forms
 from django.core.exceptions import ValidationError
 from protector.models import OwnerToPermission, GenericUserToGroup
