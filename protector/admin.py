@@ -81,10 +81,21 @@ class OwnerToPermissionAdmin(admin.ModelAdmin):
     list_select_related = ('owner_content_type', 'content_type', 'permission')
     date_hierarchy = 'date_issued'
     raw_id_fields = ('owner_content_type', 'content_type', 'permission', 'responsible')
+    actions = ['delete_qs']
+
+    def get_actions(self, request):
+        actions = super(OwnerToPermissionAdmin, self).get_actions(request)
+        if 'delete_selected' in actions:
+            del actions['delete_selected']
+        return actions
 
     def save_model(self, request, obj, form, change):
         reason = form.cleaned_data.get('reason')
         obj.save(reason=reason)
+
+    def delete_qs(self, request, queryset):
+        queryset.delete(reason=ADMIN_PANEL_DELETE_REASON(request.user))
+    delete_qs.short_description = u'Delete selected owner to permission records'
 
     def delete_model(self, request, obj):
         obj.delete(reason=ADMIN_PANEL_DELETE_REASON(request.user))
@@ -128,10 +139,21 @@ class GenericUserToGroupAdmin(admin.ModelAdmin):
     list_filter = ('group_content_type', )
     date_hierarchy = 'date_joined'
     raw_id_fields = ('user', 'responsible', 'group_content_type')
+    actions = ['delete_qs']
+
+    def get_actions(self, request):
+        actions = super(GenericUserToGroupAdmin, self).get_actions(request)
+        if 'delete_selected' in actions:
+            del actions['delete_selected']
+        return actions
 
     def save_model(self, request, obj, form, change):
         reason = form.cleaned_data.get('reason')
         obj.save(reason=reason)
+
+    def delete_qs(self, request, queryset):
+        queryset.delete(reason=ADMIN_PANEL_DELETE_REASON(request.user))
+    delete_qs.short_description = u'Delete selected user to group records'
 
     def delete_model(self, request, obj):
         obj.delete(reason=ADMIN_PANEL_DELETE_REASON(request.user))
