@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.backends import ModelBackend
 from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
 from protector.helpers import get_all_user_permissions, check_single_permission
@@ -25,9 +26,7 @@ def get_cache_field_name(obj=None):
     return cache_field_name
 
 
-class GenericPermissionBackend(object):
-    def authenticate(self, request, username=None, password=None):
-        return None
+class BaseGenericPermissionBackend(object):
 
     def get_all_permissions(self, user_obj, obj=None):
         if not user_obj.is_active or user_obj.is_anonymous:
@@ -74,3 +73,11 @@ class GenericPermissionBackend(object):
             return UserModel._default_manager.get(pk=user_id)
         except UserModel.DoesNotExist:
             return None
+
+
+class GenericPermissionBackend(BaseGenericPermissionBackend):
+    def authenticate(self, request, username=None, password=None):
+        return None
+
+class GenericAuthPermissionBackend(BaseGenericPermissionBackend, ModelBackend):
+    pass
