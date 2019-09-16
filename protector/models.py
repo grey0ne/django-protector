@@ -207,8 +207,8 @@ class HistoryGenericUserToGroup(AbstractBaseHistory, AbstractGenericUserToGroup)
             (VIEW_GENERIC_GROUP_HISTORY, _('view generic group history')),
         )
 
-    def __unicode__(self):
-        return '{history_id} | initiated by {responsible}, action: {action_type} | {group_name} {group_id}'.format(
+    def __str__(self):
+        return u'{history_id} | initiated by {responsible}, action: {action_type} | {group_name} {group_id}'.format(
             history_id=self.id,
             responsible=self.responsible.username if self.responsible else '',
             action_type=self.change_type,
@@ -347,9 +347,9 @@ class HistoryOwnerToPermission(AbstractBaseHistory, AbstractOwnerToPermission):
             (VIEW_OWNER_TO_PERM_HISTORY, _('view owner to permission history')),
         )
 
-    def __unicode__(self):
-        return '{history_id} | initiated by {responsible}, ' \
-               'action: {action_type} | {group_name} {group_id} for perm {permission}'.format(
+    def __str__(self):
+        return u'{history_id} | initiated by {responsible}, ' \
+               u'action: {action_type} | {group_name} {group_id} for perm {permission}'.format(
                     history_id=self.id,
                     responsible=self.responsible.username if self.responsible else '',
                     action_type=self.change_type,
