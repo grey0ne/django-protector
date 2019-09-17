@@ -7,6 +7,7 @@ from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericRelation, GenericForeignKey
 from django.utils.translation import ugettext_lazy as _
+from django.utils.six import text_type, python_2_unicode_compatible
 from mptt.models import MPTTModel, TreeForeignKey
 from protector.internals import (
     DEFAULT_ROLE,
@@ -185,6 +186,7 @@ class GenericUserToGroup(AbstractGenericUserToGroup):
         super(GenericUserToGroup, self).save(*args, **kwargs)
 
 
+@python_2_unicode_compatible
 class HistoryGenericUserToGroup(AbstractBaseHistory, AbstractGenericUserToGroup):
     TYPE_ADD = 1
     TYPE_REMOVE = 2
@@ -208,13 +210,14 @@ class HistoryGenericUserToGroup(AbstractBaseHistory, AbstractGenericUserToGroup)
         )
 
     def __str__(self):
-        return u'{history_id} | initiated by {responsible}, action: {action_type} | {group_name} {group_id}'.format(
-            history_id=self.id,
-            responsible=self.responsible.username if self.responsible else '',
-            action_type=self.change_type,
-            group_name=self.group_content_type,
-            group_id=self.group_id,
-        )
+        return text_type('{history_id} | initiated by {responsible}, action: {action_type} | {group_name} {group_id}').\
+            format(
+                history_id=self.id,
+                responsible=self.responsible.username if self.responsible else '',
+                action_type=self.change_type,
+                group_name=self.group_content_type,
+                group_id=self.group_id,
+            )
 
     objects = models.Manager()
 
@@ -325,6 +328,7 @@ class OwnerToPermission(AbstractOwnerToPermission):
         super(OwnerToPermission, self).save(*args, **kwargs)
 
 
+@python_2_unicode_compatible
 class HistoryOwnerToPermission(AbstractBaseHistory, AbstractOwnerToPermission):
     TYPE_ADD = 1
     TYPE_REMOVE = 2
@@ -348,15 +352,17 @@ class HistoryOwnerToPermission(AbstractBaseHistory, AbstractOwnerToPermission):
         )
 
     def __str__(self):
-        return u'{history_id} | initiated by {responsible}, ' \
-               u'action: {action_type} | {group_name} {group_id} for perm {permission}'.format(
-                    history_id=self.id,
-                    responsible=self.responsible.username if self.responsible else '',
-                    action_type=self.change_type,
-                    group_name=self.owner_content_type,
-                    group_id=self.owner_object_id,
-                    permission=self.permission.codename if self.permission else '',
-                )
+        return text_type(
+            '{history_id} | initiated by {responsible}, '
+            'action: {action_type} | {group_name} {group_id} for perm {permission}'
+        ).format(
+            history_id=self.id,
+            responsible=self.responsible.username if self.responsible else '',
+            action_type=self.change_type,
+            group_name=self.owner_content_type,
+            group_id=self.owner_object_id,
+            permission=self.permission.codename if self.permission else '',
+        )
 
     objects = models.Manager()
 
