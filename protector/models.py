@@ -208,7 +208,7 @@ class HistoryGenericUserToGroup(AbstractBaseHistory, AbstractGenericUserToGroup)
         )
 
     def __unicode__(self):
-        return '{history_id} | initiated by {responsible}, action: {action_type} | {group_name} {group_id}'.format(
+        return u'{history_id} | initiated by {responsible}, action: {action_type} | {group_name} {group_id}'.format(
             history_id=self.id,
             responsible=self.responsible.username if self.responsible else '',
             action_type=self.change_type,
