@@ -1,9 +1,12 @@
+import mock
 from django.test import TestCase
 from django.db import IntegrityError
 from django.contrib.auth.models import Permission
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.test.utils import override_settings
+
+from protector.backends import BaseGenericPermissionBackend
 from protector.exceptions import NoReasonSpecified, ImproperResponsibleInstancePassed
 from protector.models import (
     GenericGlobalPerm,
@@ -490,7 +493,7 @@ class GenericObjectRestrictionTest(TestCase):
             check_single_permission(self.user, self.permission_key, self.group)
         )
         self.assertEqual(self.HistoryOwnerToPermission.objects.count(), 1)
-    
+
     def test_single_permission_global(self):
         self.assertFalse(
             check_single_permission(self.user, self.permission_key)
@@ -504,7 +507,7 @@ class GenericObjectRestrictionTest(TestCase):
             check_single_permission(self.user, self.permission_key)
         )
         self.assertEqual(self.HistoryOwnerToPermission.objects.count(), 2)
-    
+
     def test_non_existing_permission(self):
         self.assertFalse(
             check_single_permission(self.user, 'not.exist', self.group)
@@ -698,3 +701,25 @@ class GenericObjectRestrictionTest(TestCase):
             )
         except ImproperResponsibleInstancePassed:
             pass
+
+
+@override_settings(
+    DISABLE_GENERIC_PERMISSION_CACHE=False
+)
+class TestUserPermissionCache(TestCase):
+    def setUp(self):
+        self.user = TestUser.objects.create(username='aragorn', email='aragorn@test.com')
+        permission_code_name = 'rule_gondor'
+        self.permission = Permission.objects.create(
+            codename=permission_code_name, content_type=get_user_ctype()
+        )
+        self.permission_key = '{}.{}'.format(get_user_ctype().app_label, permission_code_name)
+        self.user.permissions.add(self.permission, TEST_REASON)
+
+    @mock.patch('protector.backends.check_single_permission')
+    def test_has_perm_not_called_when_all_permissions_fetched(self, check_single_permission_mock):
+        backend = BaseGenericPermissionBackend()
+        backend.get_all_permissions(self.user)
+        self.assertTrue(backend.has_perm(self.user, self.permission_key))
+        self.assertFalse(backend.has_perm(self.user, 'some_random_permission'))
+        self.assertEqual(check_single_permission_mock.call_count, 0)
