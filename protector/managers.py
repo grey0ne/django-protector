@@ -11,13 +11,9 @@ from past.builtins import basestring
 
 PermissionedManager = models.Manager.from_queryset(PermissionQuerySet)
 
+RestrictedManager = models.Manager.from_queryset(RestrictedQuerySet)
 
-class GenericGroupManager(models.Manager.from_queryset(GenericGroupQuerySet)):
-    use_in_migrations = True
-
-
-class RestrictedManager(models.Manager.from_queryset(RestrictedQuerySet)):
-    use_in_migrations = True
+GenericGroupManager = models.Manager.from_queryset(GenericGroupQuerySet)
 
 
 class GenericUserToGroupManager(
