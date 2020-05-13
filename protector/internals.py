@@ -50,9 +50,10 @@ def get_permission_owners_query():
 def _get_filter_by_perm_condition(qset, user_id, perm_id, obj_id_field, ctype_id_field):
     # here we brake some rules about sql sanitizing
     # it is a shame, but this is an internal function so we can live with it
-    condition = "EXISTS ("
+    condition = ""
     if ctype_id_field is not None:
         condition += """
+        EXISTS (
             SELECT gl.id as pid 
             FROM protector_genericusertogroup gug 
                 LEFT JOIN protector_genericglobalperm gl 
@@ -73,9 +74,10 @@ def _get_filter_by_perm_condition(qset, user_id, perm_id, obj_id_field, ctype_id
                         AND op.permission_id = {perm_id!s} 
                         AND op.content_type_id = {ctype_id!s} 
                         AND op.object_id = {obj_id!s} 
-                ) OR EXISTS (
+        ) OR
         """
     condition += """
+        EXISTS (
             SELECT op.id as pid 
             FROM protector_genericusertogroup gug 
                 LEFT JOIN protector_ownertopermission op 
@@ -83,7 +85,7 @@ def _get_filter_by_perm_condition(qset, user_id, perm_id, obj_id_field, ctype_id
                     AND gug.group_content_type_id = op.owner_content_type_id 
                     AND {gug_op_roles_compare}
             WHERE gug.user_id = {user_id!s} AND op.permission_id = {perm_id!s} AND op.content_type_id IS NULL
-    )
+        )
     """
     result = condition.format(
         user_id=user_id, 
