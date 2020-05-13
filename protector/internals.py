@@ -50,7 +50,6 @@ def get_permission_owners_query():
 def _get_filter_by_perm_condition(qset, user_id, perm_id, obj_id_field, ctype_id_field):
     # here we brake some rules about sql sanitizing
     # it is a shame, but this is an internal function so we can live with it
-    is_postgres = connection.vendor == 'postgresql'
     condition = "EXISTS ("
     if ctype_id_field is not None:
         condition += """
