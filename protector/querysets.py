@@ -1,7 +1,6 @@
 from __future__ import unicode_literals
 
 from copy import deepcopy
-from django.db import connection
 from django.db.models.query import QuerySet
 from django.db.models import F
 from django.apps import apps
@@ -26,10 +25,10 @@ class PermissionQuerySet(QuerySet):
 class GenericUserToGroupQuerySet(QuerySet):
     def by_role(self, roles):
         utg_table_name = self.model._meta.db_table
-        rule = "{utg_table}.roles & %s".format(utg_table=utg_table_name)
-        if connection.vendor == 'postgresql':
-            rule = "({})::boolean".format(rule)
-        return self.extra(where=[rule], params=[roles])
+        return self.extra(
+            where=["{utg_table}.roles & %s != 0".format(utg_table=utg_table_name)],
+            params=[roles],
+        )
 
     @check_responsible_reason
     def delete(self, **kwargs):
