@@ -1,4 +1,4 @@
-from django.db import models, connection
+from django.db import models
 from django.apps import apps
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth import get_user_model
@@ -82,8 +82,7 @@ class UserGroupManager(models.Manager):
             user=self.instance
         )
         if roles is not None:
-            rule = "roles & %s" if not connection.vendor == 'postgresql' else "(roles & %s)::boolean"
-            utg_qset = utg_qset.extra(where=[rule], params=[roles])
+            utg_qset = utg_qset.extra(where=["roles & %s != 0"], params=[roles])
         return group_model.objects.filter(
             pk__in=utg_qset.values_list('group_id')
         )
@@ -141,8 +140,7 @@ class GroupUserManager(models.Manager):
         if roles is None:
             links = links.filter(roles__isnull=True)
         else:
-            rule = "roles & %s" if not connection.vendor == 'postgresql' else "(roles & %s)::boolean"
-            links = links.extra(where=[rule], params=[roles])
+            links = links.extra(where=["roles & %s != 0"], params=[roles])
         return get_user_model().objects.filter(id__in=links.values_list('user_id', flat=True))
 
 
