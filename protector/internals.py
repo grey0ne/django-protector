@@ -30,10 +30,10 @@ def get_permission_owners_query():
             LEFT JOIN {owner_table_name!s} op 
                 ON gug.group_id = op.owner_object_id 
                 AND gug.group_content_type_id = op.owner_content_type_id 
-                AND {gug_op_roles_compare} 
+                AND gug.roles & op.roles != 0
                     LEFT JOIN {global_table_name!s} gl 
                         ON gl.content_type_id = gug.group_content_type_id 
-                        AND {gl_gug_roles_compare}
+                        AND gl.roles & gug.roles != 0
     """
     OwnerToPermission = apps.get_model('protector', 'OwnerToPermission')
     GenericUserToGroup = apps.get_model('protector', 'GenericUserToGroup')
@@ -42,8 +42,6 @@ def get_permission_owners_query():
         owner_table_name=OwnerToPermission._meta.db_table,
         group_table_name=GenericUserToGroup._meta.db_table,
         global_table_name=GenericGlobalPerm._meta.db_table,
-        gug_op_roles_compare=_get_bit_comparision('gug.roles', 'op.roles'),
-        gl_gug_roles_compare=_get_bit_comparision('gl.roles', 'gug.roles')
     )
 
 
@@ -58,7 +56,7 @@ def _get_filter_by_perm_condition(qset, user_id, perm_id, obj_id_field, ctype_id
             FROM protector_genericusertogroup gug 
                 LEFT JOIN protector_genericglobalperm gl 
                     ON gl.content_type_id = gug.group_content_type_id 
-                    AND {gl_gug_roles_compare}
+                    AND gl.roles & gug.roles != 0
                 WHERE gug.user_id = {user_id!s} 
                     AND gl.permission_id = {perm_id!s} 
                     AND gl.content_type_id = {ctype_id!s} 
@@ -69,7 +67,7 @@ def _get_filter_by_perm_condition(qset, user_id, perm_id, obj_id_field, ctype_id
                         LEFT JOIN protector_ownertopermission op 
                             ON gug.group_id = op.owner_object_id 
                             AND gug.group_content_type_id = op.owner_content_type_id 
-                            AND {gug_op_roles_compare}
+                            AND gug.roles & op.roles != 0
                     WHERE gug.user_id = {user_id!s} 
                         AND op.permission_id = {perm_id!s} 
                         AND op.content_type_id = {ctype_id!s} 
@@ -88,12 +86,10 @@ def _get_filter_by_perm_condition(qset, user_id, perm_id, obj_id_field, ctype_id
         )
     """
     result = condition.format(
-        user_id=user_id, 
+        user_id=user_id,
         perm_id=perm_id,
-        ctype_id=ctype_id_field, 
+        ctype_id=ctype_id_field,
         obj_id=obj_id_field,
-        gl_gug_roles_compare=_get_bit_comparision('gl.roles', 'gug.roles'),
-        gug_op_roles_compare=_get_bit_comparision('gug.roles', 'op.roles')
     )
     return result
 
@@ -102,12 +98,14 @@ def _get_permission_filter(qset, user_id, perm_id):
     if hasattr(qset, 'get_obj_id_field'):
         obj_id_field = qset.get_obj_id_field()
     else:
-        obj_id_field = "{table_name!s}.id".format(table_name=qset.model._meta.db_table)
+        obj_id_field = "{table_name!s}.id".format(
+            table_name=qset.model._meta.db_table)
     if hasattr(qset, 'get_ctype_id_field'):
         ctype_id_field = qset.get_ctype_id_field()
     else:
         ctype_id_field = str(ContentType.objects.get_for_model(qset.model).id)
-    result = _get_filter_by_perm_condition(qset, user_id, perm_id, obj_id_field, ctype_id_field)
+    result = _get_filter_by_perm_condition(
+        qset, user_id, perm_id, obj_id_field, ctype_id_field)
     return result
 
 
@@ -146,14 +144,16 @@ def _get_restriction_filter(qset, user_id, perm_id):
     if hasattr(qset, 'get_restriction_id_field'):
         obj_id_field = qset.get_restriction_id_field()
     else:
-        obj_id_field = "{table_name!s}.restriction_id".format(table_name=qset.model._meta.db_table)
+        obj_id_field = "{table_name!s}.restriction_id".format(
+            table_name=qset.model._meta.db_table)
     if hasattr(qset, 'get_restriction_ctype_id_field'):
         ctype_id_field = qset.get_restriction_ctype_id_field()
     else:
         ctype_id_field = "{table_name!s}.restriction_content_type_id".format(
             table_name=qset.model._meta.db_table
         )
-    result = _get_filter_by_perm_condition(qset, user_id, perm_id, obj_id_field, ctype_id_field)
+    result = _get_filter_by_perm_condition(
+        qset, user_id, perm_id, obj_id_field, ctype_id_field)
     return result
 
 
@@ -191,14 +191,3 @@ def get_default_group_ctype():
 
 def get_user_ctype():
     return ContentType.objects.get_for_model(get_user_model())
-
-
-def _get_bit_comparision(item1, item2):
-    """
-        Wrapper for postrgres compatibility.
-    """
-    postgres_compability = connection.vendor == 'postgresql'
-    comparision_query = '{} & {}'.format(item1, item2)
-    if postgres_compability:
-        return '({})::boolean'.format(comparision_query)
-    return comparision_query
