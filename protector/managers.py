@@ -82,7 +82,7 @@ class UserGroupManager(models.Manager):
             user=self.instance
         )
         if roles is not None:
-            utg_qset = utg_qset.extra(where=["roles & %s"], params=[roles])
+            utg_qset = utg_qset.extra(where=["roles & %s != 0"], params=[roles])
         return group_model.objects.filter(
             pk__in=utg_qset.values_list('group_id')
         )
@@ -140,7 +140,7 @@ class GroupUserManager(models.Manager):
         if roles is None:
             links = links.filter(roles__isnull=True)
         else:
-            links = links.extra(where=["roles & %s"], params=[roles])
+            links = links.extra(where=["roles & %s != 0"], params=[roles])
         return get_user_model().objects.filter(id__in=links.values_list('user_id', flat=True))
 
 

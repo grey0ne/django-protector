@@ -26,8 +26,8 @@ class GenericUserToGroupQuerySet(QuerySet):
     def by_role(self, roles):
         utg_table_name = self.model._meta.db_table
         return self.extra(
-            where=["{utg_table}.roles & %s".format(utg_table=utg_table_name)],
-            params=[roles]
+            where=["{utg_table}.roles & %s != 0".format(utg_table=utg_table_name)],
+            params=[roles],
         )
 
     @check_responsible_reason
