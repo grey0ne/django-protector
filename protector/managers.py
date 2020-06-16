@@ -9,15 +9,21 @@ from protector.helpers import get_permission_id_by_name, check_responsible_reaso
 from past.builtins import basestring
 
 
-GenericUserToGroupManager = models.Manager.from_queryset(GenericUserToGroupQuerySet)
-
 PermissionedManager = models.Manager.from_queryset(PermissionQuerySet)
 
 RestrictedManager = models.Manager.from_queryset(RestrictedQuerySet)
 
-OwnerToPermissionManager = models.Manager.from_queryset(OwnerToPermissionQuerySet)
-
 GenericGroupManager = models.Manager.from_queryset(GenericGroupQuerySet)
+
+
+class GenericUserToGroupManager(
+    models.Manager.from_queryset(GenericUserToGroupQuerySet)
+):
+    use_in_migrations = True
+
+
+class OwnerToPermissionManager(models.Manager.from_queryset(OwnerToPermissionQuerySet)):
+    use_in_migrations = True
 
 
 class UserGroupManager(models.Manager):
