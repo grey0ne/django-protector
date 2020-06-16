@@ -30,10 +30,10 @@ def get_permission_owners_query():
             LEFT JOIN {owner_table_name!s} op 
                 ON gug.group_id = op.owner_object_id 
                 AND gug.group_content_type_id = op.owner_content_type_id 
-                AND gug.roles & op.roles != 0
+                AND (gug.roles & op.roles) != 0
                     LEFT JOIN {global_table_name!s} gl 
                         ON gl.content_type_id = gug.group_content_type_id 
-                        AND gl.roles & gug.roles != 0
+                        AND (gl.roles & gug.roles) != 0
     """
     OwnerToPermission = apps.get_model('protector', 'OwnerToPermission')
     GenericUserToGroup = apps.get_model('protector', 'GenericUserToGroup')
@@ -56,7 +56,7 @@ def _get_filter_by_perm_condition(qset, user_id, perm_id, obj_id_field, ctype_id
             FROM protector_genericusertogroup gug 
                 LEFT JOIN protector_genericglobalperm gl 
                     ON gl.content_type_id = gug.group_content_type_id 
-                    AND gl.roles & gug.roles != 0
+                    AND (gl.roles & gug.roles) != 0
                 WHERE gug.user_id = {user_id!s} 
                     AND gl.permission_id = {perm_id!s} 
                     AND gl.content_type_id = {ctype_id!s} 
@@ -67,7 +67,7 @@ def _get_filter_by_perm_condition(qset, user_id, perm_id, obj_id_field, ctype_id
                         LEFT JOIN protector_ownertopermission op 
                             ON gug.group_id = op.owner_object_id 
                             AND gug.group_content_type_id = op.owner_content_type_id 
-                            AND gug.roles & op.roles != 0
+                            AND (gug.roles & op.roles) != 0
                     WHERE gug.user_id = {user_id!s} 
                         AND op.permission_id = {perm_id!s} 
                         AND op.content_type_id = {ctype_id!s} 
