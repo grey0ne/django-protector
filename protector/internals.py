@@ -81,7 +81,7 @@ def _get_filter_by_perm_condition(qset, user_id, perm_id, obj_id_field, ctype_id
                 LEFT JOIN protector_ownertopermission op 
                 ON gug.group_id = op.owner_object_id 
                     AND gug.group_content_type_id = op.owner_content_type_id 
-                    AND {gug_op_roles_compare}
+                    AND (gug.roles & op.roles) != 0
             WHERE gug.user_id = {user_id!s} AND op.permission_id = {perm_id!s} AND op.content_type_id IS NULL
         )
     """
