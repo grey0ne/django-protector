@@ -349,7 +349,7 @@ class HistoryOwnerToPermission(AbstractBaseHistory, AbstractOwnerToPermission):
         )
 
     def __str__(self):
-        return text_type(
+        return (
             '{history_id} | initiated by {responsible}, '
             'action: {action_type} | {group_name} {group_id} for perm {permission}'
         ).format(
