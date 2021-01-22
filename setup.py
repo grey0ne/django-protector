@@ -20,7 +20,7 @@ setup(
     test_suite='runtests.runtests',
     install_requires=[
         'django-mptt>=0.8.6',
-        'Django>=1.11',
+        'Django>=2.0',
         'future>=0.16.0'
     ],
     classifiers=[
