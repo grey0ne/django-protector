@@ -723,3 +723,53 @@ class TestUserPermissionCache(TestCase):
         self.assertTrue(backend.has_perm(self.user, self.permission_key))
         self.assertFalse(backend.has_perm(self.user, 'some_random_permission'))
         self.assertEqual(check_single_permission_mock.call_count, 0)
+
+
+@override_settings(
+    DISABLE_GENERIC_PERMISSION_CACHE=False
+)
+class TestGenericUserToGroupSelf(TestCase):
+    def setUp(self):
+        self.user = TestUser.objects.create(username='aragorn', email='aragorn@test.com')
+        permission_code_name = 'rule_gondor'
+        self.permission = Permission.objects.create(
+            codename=permission_code_name, content_type=get_user_ctype()
+        )
+
+    def test_add_user_to_himself(self):
+        """
+        When we give user any permission, his is added to a group of his own.
+        """
+        self.assertFalse(GenericUserToGroup.objects.all())
+        self.user.permissions.add(self.permission, TEST_REASON)
+        self.assertTrue(
+            GenericUserToGroup.objects.filter(
+                user=self.user,
+                group_id=self.user.id,
+                group_content_type=get_user_ctype(),
+                roles=TestUser.SELF,
+            )
+        )
+
+    def test_add_user_to_himself_already_added(self):
+        """
+        If user was already part of a group of his own without self role, we add self role.
+        """
+        self.assertEqual(0, self.user.users.by_role(roles=TestUser.SELF).count())
+        self.assertEqual(0, self.user.users.by_role(roles=TestUser.ASSISTANT).count())
+
+        GenericUserToGroup.objects.create(
+            user=self.user,
+            group_id=self.user.id,
+            group_content_type=get_user_ctype(),
+            roles=TestUser.ASSISTANT,
+            reason=TEST_REASON,
+        )
+
+        self.assertEqual(0, self.user.users.by_role(roles=TestUser.SELF).count())
+        self.assertEqual(1, self.user.users.by_role(roles=TestUser.ASSISTANT).count())
+
+        self.user.permissions.add(self.permission, TEST_REASON)
+
+        self.assertEqual(1, self.user.users.by_role(roles=TestUser.SELF).count())
+        self.assertEqual(1, self.user.users.by_role(roles=TestUser.ASSISTANT).count())

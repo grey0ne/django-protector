@@ -27,7 +27,7 @@ from protector.managers import (
     RestrictedManager,
     GenericGroupManager,
 )
-from protector.reserved_reasons import MEMBER_FK_UPDATE_REASON
+from protector.reserved_reasons import MEMBER_FK_UPDATE_REASON, SELF_GROUP_ROLE_UPDATED
 
 
 #  Form a from clause for all permission related to their owners
@@ -309,16 +309,22 @@ class OwnerToPermission(AbstractOwnerToPermission):
             # Here is a bit of denormalization
             # User is a part of group of his own
             # This is done to drastically improve perm checking performance
-            GenericUserToGroup.objects.get_or_create(
+            self_role = 1  # role == 1 in user model is assumed to mean user himself
+            generic_user_to_group, created = GenericUserToGroup.objects.get_or_create(
                 reason=kwargs.get('reason'),
                 group_id=self.owner_object_id,
                 group_content_type=self.owner_content_type,
                 user_id=self.owner_object_id,
-                roles=1,
                 defaults={
                     'responsible': kwargs.get('responsible'),
+                    'roles': self_role,
                 }
             )
+            if not generic_user_to_group.roles & self_role:
+                # If (for some reason) user is a part of group of his own without self role (1),
+                # we ensure that self role is included
+                generic_user_to_group.roles |= self_role
+                generic_user_to_group.save(reason=SELF_GROUP_ROLE_UPDATED)
         try:
             del kwargs['reason']
         except KeyError:
