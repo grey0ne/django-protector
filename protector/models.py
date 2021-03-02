@@ -42,7 +42,7 @@ class AbstractGenericUserToGroup(models.Model):
     roles = models.IntegerField(verbose_name=_('roles'), blank=True, null=True)
     group_id = models.PositiveIntegerField(verbose_name=_('group id'))
     group_content_type = models.ForeignKey(
-        verbose_name=_('group content type'), to=ContentType, on_delete=models.CASCADE
+        verbose_name=_('group content type'), to=ContentType, on_delete=models.CASCADE, db_index=False
     )
     group = GenericForeignKey('group_content_type', 'group_id')
 
@@ -138,7 +138,7 @@ class GenericUserToGroup(AbstractGenericUserToGroup):
     class Meta:
         verbose_name = _('user to group link')
         verbose_name_plural = _('user to group links')
-        unique_together = ('group_id', 'group_content_type', 'user')
+        unique_together = ('group_content_type', 'group_id', 'user')
 
     def __unicode__(self):
         return "{app}.{model}.{group_id} - {username}".format(
@@ -203,6 +203,7 @@ class HistoryGenericUserToGroup(AbstractBaseHistory, AbstractGenericUserToGroup)
     class Meta:
         verbose_name = _('generic user to group history')
         verbose_name_plural = _('generic user to group histories')
+        index_together = ('group_content_type', 'group_id', 'user')
         permissions = (
             (VIEW_GENERIC_GROUP_HISTORY, _('view generic group history')),
         )
@@ -237,7 +238,7 @@ class OwnerToPermission(AbstractOwnerToPermission):
         verbose_name_plural = _('owner to permission links')
         index_together = (
             ['owner_content_type', 'owner_object_id'],
-            ['content_type', 'object_id', 'permission']
+            ['content_type', 'object_id', 'permission'],
         )
         unique_together = (
             'content_type', 'object_id', 'owner_content_type', 'owner_object_id', 'permission'
