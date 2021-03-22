@@ -1,4 +1,4 @@
-Django>=2.0
+Django>=2.2
 django-mptt>=0.8.6
 future>=0.16.0
 mock>=3.0.5
