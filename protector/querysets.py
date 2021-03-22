@@ -9,6 +9,7 @@ from protector.exceptions import NoReasonSpecified
 from protector.internals import (
     VIEW_PERMISSION_NAME,
     _get_restriction_filter,
+    get_user_ctype,
 )
 from protector.helpers import filter_queryset_by_permission, get_view_permission, check_responsible_reason
 from protector.reserved_reasons import GENERIC_GROUP_UPDATE_REASON
@@ -52,10 +53,12 @@ class GenericUserToGroupQuerySet(QuerySet):
         return super(GenericUserToGroupQuerySet, self).delete()
 
     @check_responsible_reason
-    def bulk_create(self, objs, batch_size=None, **kwargs):
+    def bulk_create(self, objs, batch_size=None, ignore_conflicts=False, **kwargs):
         HistoryGenericUserToGroup = apps.get_model('protector', 'HistoryGenericUserToGroup')
 
-        created_objs = super(GenericUserToGroupQuerySet, self).bulk_create(objs, batch_size=batch_size)
+        created_objs = super(GenericUserToGroupQuerySet, self).bulk_create(
+            objs, batch_size=batch_size, ignore_conflicts=ignore_conflicts,
+        )
 
         hist_objs = deepcopy(objs)
         hist_objs_to_create = list()
@@ -171,10 +174,41 @@ class OwnerToPermissionQuerySet(QuerySet):
         return (result, True) if not isinstance(result, tuple) else result
 
     @check_responsible_reason
-    def bulk_create(self, objs, batch_size=None, **kwargs):
+    def bulk_create(self, objs, batch_size=None, ignore_conflicts=False, **kwargs):
         HistoryOwnerToPermission = apps.get_model('protector', 'HistoryOwnerToPermission')
 
-        created_objs = super(OwnerToPermissionQuerySet, self).bulk_create(objs, batch_size=batch_size)
+        created_objs = super(OwnerToPermissionQuerySet, self).bulk_create(
+            objs, batch_size=batch_size, ignore_conflicts=ignore_conflicts,
+        )
+
+        # user is a part of group of his own
+        # it's done for better perm checking performance
+        # we have to create missing gug relations with self role
+        GenericUserToGroup = apps.get_model('protector', 'GenericUserToGroup')
+        self_role = 1  # role == 1 in user model is assumed to mean user himself
+        user_content_type_id = get_user_ctype().id
+        gug_objs = list()
+        for otp in created_objs:
+            if otp.owner_content_type_id == user_content_type_id:
+                gug_objs.append(GenericUserToGroup(
+                    group_id=otp.owner_object_id,
+                    group_content_type=otp.owner_content_type,
+                    user_id=otp.owner_object_id,
+                    roles=self_role,
+                    responsible=kwargs.get('responsible'),
+                ))
+        if gug_objs:
+            GenericUserToGroup.objects.bulk_create(
+                gug_objs, batch_size=batch_size, ignore_conflicts=True, reason=kwargs.get('reason'),
+            )
+            users_ids = {gug.user_id for gug in gug_objs}
+            GenericUserToGroup.objects.filter(
+                group_id__in=users_ids,
+                group_content_type_id=user_content_type_id,
+                user_id__in=users_ids,
+            ).update(
+                roles=F('roles').bitor(self_role)
+            )
 
         hist_objs = deepcopy(objs)
         hist_objs_to_create = list()
