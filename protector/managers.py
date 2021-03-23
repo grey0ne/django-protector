@@ -113,7 +113,7 @@ class GroupUserManager(models.Manager):
                 reason=reason,
                 defaults={'roles': roles, 'responsible': responsible}
             )
-            if not created:
+            if not created and gug.roles != roles:
                 gug.roles |= roles
                 gug.save(reason=reason)
 
