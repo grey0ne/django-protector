@@ -650,7 +650,7 @@ class Restricted(models.Model):
             )
         else:
             parent_restriction = None
-        Restriction.objects.get_or_create(
+        Restriction.objects.update_or_create(
             object_id=self.pk,
             content_type=ContentType.objects.get_for_model(self),
             defaults={'parent': parent_restriction}
