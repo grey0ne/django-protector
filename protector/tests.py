@@ -1,3 +1,7 @@
+try:
+    from unittest import mock
+except ImportError:
+    import mock
 from django.test import TestCase
 from django.db import IntegrityError
 from django.contrib.auth.models import Permission
@@ -490,7 +494,7 @@ class GenericObjectRestrictionTest(TestCase):
             check_single_permission(self.user, self.permission_key, self.group)
         )
         self.assertEqual(self.HistoryOwnerToPermission.objects.count(), 1)
-    
+
     def test_single_permission_global(self):
         self.assertFalse(
             check_single_permission(self.user, self.permission_key)
@@ -504,7 +508,7 @@ class GenericObjectRestrictionTest(TestCase):
             check_single_permission(self.user, self.permission_key)
         )
         self.assertEqual(self.HistoryOwnerToPermission.objects.count(), 2)
-    
+
     def test_non_existing_permission(self):
         self.assertFalse(
             check_single_permission(self.user, 'not.exist', self.group)
