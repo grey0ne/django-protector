@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 TEST_REASON = 'TEST REASON'
 GENERIC_GROUP_UPDATE_REASON = 'Groups were created due to foreign key links update'
+SELF_GROUP_ROLE_UPDATED = 'Self-role added for user own group'
 
 
 def ADMIN_PANEL_DELETE_REASON(user):

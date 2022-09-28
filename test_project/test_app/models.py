@@ -22,7 +22,14 @@ class TestGroup(AbstractGenericGroup, Restricted):
         verbose_name = u'Test Group'
 
 
-class TestUser(UserGenericPermsMixin, AbstractBaseUser):
+class TestUser(AbstractGenericGroup, UserGenericPermsMixin, AbstractBaseUser):
+    SELF = 1
+    ASSISTANT = 1 << 2
+    ROLES = (
+        (SELF, 'User'),
+        (ASSISTANT, 'Assistant'),
+    )
+
     USERNAME_FIELD = 'username'
     REQUIRED_FIELDS = ('email', )
     username = models.CharField(max_length=30, unique=True)

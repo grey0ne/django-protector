@@ -2,6 +2,7 @@ from django.apps import apps
 from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.db import connection
 from protector.query import Query
 
 ADD_PERMISSION_PERMISSION = 'add_permission'
@@ -25,14 +26,14 @@ def get_permission_owners_query():
         Should select perms that assigned to any role
     """
     owners_query = """
-        {group_table_name!s} gug LEFT JOIN
-        {owner_table_name!s} op ON
-            gug.group_id = op.owner_object_id AND
-            gug.group_content_type_id = op.owner_content_type_id AND
-            gug.roles & op.roles LEFT JOIN
-        {global_table_name!s} gl ON
-            gl.content_type_id = gug.group_content_type_id AND
-            gl.roles & gug.roles
+        {group_table_name!s} gug 
+            LEFT JOIN {owner_table_name!s} op 
+                ON gug.group_id = op.owner_object_id 
+                AND gug.group_content_type_id = op.owner_content_type_id 
+                AND (gug.roles & op.roles) != 0
+                    LEFT JOIN {global_table_name!s} gl 
+                        ON gl.content_type_id = gug.group_content_type_id 
+                        AND (gl.roles & gug.roles) != 0
     """
     OwnerToPermission = apps.get_model('protector', 'OwnerToPermission')
     GenericUserToGroup = apps.get_model('protector', 'GenericUserToGroup')
@@ -47,25 +48,48 @@ def get_permission_owners_query():
 def _get_filter_by_perm_condition(qset, user_id, perm_id, obj_id_field, ctype_id_field):
     # here we brake some rules about sql sanitizing
     # it is a shame, but this is an internal function so we can live with it
-    condition = "EXISTS ("
+    condition = ""
     if ctype_id_field is not None:
         condition += """
-                SELECT gl.id as pid FROM protector_genericusertogroup gug LEFT JOIN protector_genericglobalperm gl ON gl.content_type_id = gug.group_content_type_id AND gl.roles & gug.roles
-                WHERE gug.user_id = {user_id!s} AND gl.permission_id = {perm_id!s} AND gl.content_type_id = {ctype_id!s} AND gug.group_id = {obj_id!s} )
-             OR EXISTS (
-                SELECT op.id as pid
-                FROM protector_genericusertogroup gug LEFT JOIN protector_ownertopermission op ON gug.group_id = op.owner_object_id AND gug.group_content_type_id = op.owner_content_type_id AND gug.roles & op.roles
-                WHERE gug.user_id = {user_id!s} AND op.permission_id = {perm_id!s} AND op.content_type_id = {ctype_id!s} AND op.object_id = {obj_id!s} )
-             OR EXISTS (
+        EXISTS (
+            SELECT gl.id as pid 
+            FROM protector_genericusertogroup gug 
+                LEFT JOIN protector_genericglobalperm gl 
+                    ON gl.content_type_id = gug.group_content_type_id 
+                    AND (gl.roles & gug.roles) != 0
+                WHERE gug.user_id = {user_id!s} 
+                    AND gl.permission_id = {perm_id!s} 
+                    AND gl.content_type_id = {ctype_id!s} 
+                    AND gug.group_id = {obj_id!s} )
+                OR EXISTS (
+                    SELECT op.id as pid
+                    FROM protector_genericusertogroup gug 
+                        LEFT JOIN protector_ownertopermission op 
+                            ON gug.group_id = op.owner_object_id 
+                            AND gug.group_content_type_id = op.owner_content_type_id 
+                            AND (gug.roles & op.roles) != 0
+                    WHERE gug.user_id = {user_id!s} 
+                        AND op.permission_id = {perm_id!s} 
+                        AND op.content_type_id = {ctype_id!s} 
+                        AND op.object_id = {obj_id!s} 
+        ) OR
         """
     condition += """
-            SELECT op.id as pid FROM protector_genericusertogroup gug LEFT JOIN protector_ownertopermission op ON gug.group_id = op.owner_object_id AND gug.group_content_type_id = op.owner_content_type_id AND gug.roles & op.roles
+        EXISTS (
+            SELECT op.id as pid 
+            FROM protector_genericusertogroup gug 
+                LEFT JOIN protector_ownertopermission op 
+                ON gug.group_id = op.owner_object_id 
+                    AND gug.group_content_type_id = op.owner_content_type_id 
+                    AND (gug.roles & op.roles) != 0
             WHERE gug.user_id = {user_id!s} AND op.permission_id = {perm_id!s} AND op.content_type_id IS NULL
-    )
+        )
     """
     result = condition.format(
-        user_id=user_id, perm_id=perm_id,
-        ctype_id=ctype_id_field, obj_id=obj_id_field,
+        user_id=user_id,
+        perm_id=perm_id,
+        ctype_id=ctype_id_field,
+        obj_id=obj_id_field,
     )
     return result
 
@@ -74,12 +98,14 @@ def _get_permission_filter(qset, user_id, perm_id):
     if hasattr(qset, 'get_obj_id_field'):
         obj_id_field = qset.get_obj_id_field()
     else:
-        obj_id_field = "{table_name!s}.id".format(table_name=qset.model._meta.db_table)
+        obj_id_field = "{table_name!s}.id".format(
+            table_name=qset.model._meta.db_table)
     if hasattr(qset, 'get_ctype_id_field'):
         ctype_id_field = qset.get_ctype_id_field()
     else:
         ctype_id_field = str(ContentType.objects.get_for_model(qset.model).id)
-    result = _get_filter_by_perm_condition(qset, user_id, perm_id, obj_id_field, ctype_id_field)
+    result = _get_filter_by_perm_condition(
+        qset, user_id, perm_id, obj_id_field, ctype_id_field)
     return result
 
 
@@ -118,14 +144,16 @@ def _get_restriction_filter(qset, user_id, perm_id):
     if hasattr(qset, 'get_restriction_id_field'):
         obj_id_field = qset.get_restriction_id_field()
     else:
-        obj_id_field = "{table_name!s}.restriction_id".format(table_name=qset.model._meta.db_table)
+        obj_id_field = "{table_name!s}.restriction_id".format(
+            table_name=qset.model._meta.db_table)
     if hasattr(qset, 'get_restriction_ctype_id_field'):
         ctype_id_field = qset.get_restriction_ctype_id_field()
     else:
         ctype_id_field = "{table_name!s}.restriction_content_type_id".format(
             table_name=qset.model._meta.db_table
         )
-    result = _get_filter_by_perm_condition(qset, user_id, perm_id, obj_id_field, ctype_id_field)
+    result = _get_filter_by_perm_condition(
+        qset, user_id, perm_id, obj_id_field, ctype_id_field)
     return result
 
 

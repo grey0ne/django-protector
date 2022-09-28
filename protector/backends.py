@@ -54,6 +54,15 @@ class BaseGenericPermissionBackend(object):
         if not hasattr(user_obj, cache_field_name) or disable_cache:
             setattr(user_obj, cache_field_name, {})
         perm_dict = getattr(user_obj, cache_field_name)
+
+        # Check cached all permissions set.
+        # It is not empty if has_perm() is called after get_all_permissions()
+        if not disable_cache and not obj:
+            all_perms_cache_field_name = get_cache_field_name()
+            all_perms_set = getattr(user_obj, all_perms_cache_field_name, None)
+            if all_perms_set is not None:
+                perm_dict[perm] = perm in all_perms_set
+
         if perm not in perm_dict or disable_cache:
             check_result = check_single_permission(user_obj, perm, obj)
             perm_dict[perm] = check_result

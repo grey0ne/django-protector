@@ -9,15 +9,21 @@ from protector.helpers import get_permission_id_by_name, check_responsible_reaso
 from past.builtins import basestring
 
 
-GenericUserToGroupManager = models.Manager.from_queryset(GenericUserToGroupQuerySet)
-
 PermissionedManager = models.Manager.from_queryset(PermissionQuerySet)
 
 RestrictedManager = models.Manager.from_queryset(RestrictedQuerySet)
 
-OwnerToPermissionManager = models.Manager.from_queryset(OwnerToPermissionQuerySet)
-
 GenericGroupManager = models.Manager.from_queryset(GenericGroupQuerySet)
+
+
+class GenericUserToGroupManager(
+    models.Manager.from_queryset(GenericUserToGroupQuerySet)
+):
+    use_in_migrations = True
+
+
+class OwnerToPermissionManager(models.Manager.from_queryset(OwnerToPermissionQuerySet)):
+    use_in_migrations = True
 
 
 class UserGroupManager(models.Manager):
@@ -82,7 +88,7 @@ class UserGroupManager(models.Manager):
             user=self.instance
         )
         if roles is not None:
-            utg_qset = utg_qset.extra(where=["roles & %s"], params=[roles])
+            utg_qset = utg_qset.extra(where=["roles & %s != 0"], params=[roles])
         return group_model.objects.filter(
             pk__in=utg_qset.values_list('group_id')
         )
@@ -113,7 +119,7 @@ class GroupUserManager(models.Manager):
                 reason=reason,
                 defaults={'roles': roles, 'responsible': responsible}
             )
-            if not created:
+            if not created and gug.roles != roles:
                 gug.roles |= roles
                 gug.save(reason=reason)
 
@@ -140,7 +146,7 @@ class GroupUserManager(models.Manager):
         if roles is None:
             links = links.filter(roles__isnull=True)
         else:
-            links = links.extra(where=["roles & %s"], params=[roles])
+            links = links.extra(where=["roles & %s != 0"], params=[roles])
         return get_user_model().objects.filter(id__in=links.values_list('user_id', flat=True))
 
 

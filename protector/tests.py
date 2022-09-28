@@ -8,6 +8,8 @@ from django.contrib.auth.models import Permission
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.test.utils import override_settings
+
+from protector.backends import BaseGenericPermissionBackend
 from protector.exceptions import NoReasonSpecified, ImproperResponsibleInstancePassed
 from protector.models import (
     GenericGlobalPerm,
@@ -573,6 +575,8 @@ class GenericObjectRestrictionTest(TestCase):
             self.HistoryOwnerToPermission.objects.filter(change_type=self.HistoryOwnerToPermission.TYPE_REMOVE).count(),
         )
 
+        self_role = 1
+
         # model save method
         otp = OwnerToPermission(permission=self.permission, owner=self.user, content_object=self.group)
         self.assertRaises(NoReasonSpecified, otp.save)
@@ -580,6 +584,9 @@ class GenericObjectRestrictionTest(TestCase):
         self.assertEqual(
             self.HistoryOwnerToPermission.objects.filter(change_type=self.HistoryOwnerToPermission.TYPE_ADD).count(), 2
         )
+        # user is a part of group of his own
+        self.assertTrue(self.user in self.user.users.all())
+        self.assertCountEqual(self.user.get_roles(self.user), [self_role])
         # role change
         self.assertEqual(
             self.HistoryOwnerToPermission.objects.filter(change_type=self.HistoryOwnerToPermission.TYPE_CHANGE).count(),
@@ -593,7 +600,6 @@ class GenericObjectRestrictionTest(TestCase):
         )
 
         # manager delete method
-
         self.assertRaises(NoReasonSpecified, OwnerToPermission.objects.all().delete)
         try:
             OwnerToPermission.objects.all().delete(reason=TEST_REASON, responsible=self.responsible_user)
@@ -606,7 +612,12 @@ class GenericObjectRestrictionTest(TestCase):
             2
         )
 
-        # manager bulk_create
+        # remove user from himself and add with other role
+        self.user.users.remove(self.user, reason=TEST_REASON)
+        custom_role = 2
+        self.user.users.add(self.user, roles=custom_role, reason=TEST_REASON)
+
+        # manager bulk_create method
         otps_to_create = [
             OwnerToPermission(permission=self.permission, owner=self.user, responsible=self.responsible_user),
             OwnerToPermission(permission=self.permission2, owner=self.user2, responsible=self.responsible_user),
@@ -621,6 +632,12 @@ class GenericObjectRestrictionTest(TestCase):
                 responsible=self.responsible_user,
             ).count(), 3
         )
+        # now user is a part of group of his own again and also has custom role
+        self.assertTrue(self.user in self.user.users.all())
+        self.assertCountEqual(self.user.get_roles(self.user), [self_role, custom_role])
+        # now user2 is a part of group of his own too
+        self.assertTrue(self.user2 in self.user2.users.all())
+        self.assertCountEqual(self.user2.get_roles(self.user2), [self_role])
 
     def test_gug_redefined_manager_methods(self):
         gug = GenericUserToGroup.objects.create(group=self.group, user=self.user, reason=TEST_REASON)
@@ -702,3 +719,75 @@ class GenericObjectRestrictionTest(TestCase):
             )
         except ImproperResponsibleInstancePassed:
             pass
+
+
+@override_settings(
+    DISABLE_GENERIC_PERMISSION_CACHE=False
+)
+class TestUserPermissionCache(TestCase):
+    def setUp(self):
+        self.user = TestUser.objects.create(username='aragorn', email='aragorn@test.com')
+        permission_code_name = 'rule_gondor'
+        self.permission = Permission.objects.create(
+            codename=permission_code_name, content_type=get_user_ctype()
+        )
+        self.permission_key = '{}.{}'.format(get_user_ctype().app_label, permission_code_name)
+        self.user.permissions.add(self.permission, TEST_REASON)
+
+    @mock.patch('protector.backends.check_single_permission')
+    def test_has_perm_not_called_when_all_permissions_fetched(self, check_single_permission_mock):
+        backend = BaseGenericPermissionBackend()
+        backend.get_all_permissions(self.user)
+        self.assertTrue(backend.has_perm(self.user, self.permission_key))
+        self.assertFalse(backend.has_perm(self.user, 'some_random_permission'))
+        self.assertEqual(check_single_permission_mock.call_count, 0)
+
+
+@override_settings(
+    DISABLE_GENERIC_PERMISSION_CACHE=False
+)
+class TestGenericUserToGroupSelf(TestCase):
+    def setUp(self):
+        self.user = TestUser.objects.create(username='aragorn', email='aragorn@test.com')
+        permission_code_name = 'rule_gondor'
+        self.permission = Permission.objects.create(
+            codename=permission_code_name, content_type=get_user_ctype()
+        )
+
+    def test_add_user_to_himself(self):
+        """
+        When we give user any permission, his is added to a group of his own.
+        """
+        self.assertFalse(GenericUserToGroup.objects.all())
+        self.user.permissions.add(self.permission, TEST_REASON)
+        self.assertTrue(
+            GenericUserToGroup.objects.filter(
+                user=self.user,
+                group_id=self.user.id,
+                group_content_type=get_user_ctype(),
+                roles=TestUser.SELF,
+            )
+        )
+
+    def test_add_user_to_himself_already_added(self):
+        """
+        If user was already part of a group of his own without self role, we add self role.
+        """
+        self.assertEqual(0, self.user.users.by_role(roles=TestUser.SELF).count())
+        self.assertEqual(0, self.user.users.by_role(roles=TestUser.ASSISTANT).count())
+
+        GenericUserToGroup.objects.create(
+            user=self.user,
+            group_id=self.user.id,
+            group_content_type=get_user_ctype(),
+            roles=TestUser.ASSISTANT,
+            reason=TEST_REASON,
+        )
+
+        self.assertEqual(0, self.user.users.by_role(roles=TestUser.SELF).count())
+        self.assertEqual(1, self.user.users.by_role(roles=TestUser.ASSISTANT).count())
+
+        self.user.permissions.add(self.permission, TEST_REASON)
+
+        self.assertEqual(1, self.user.users.by_role(roles=TestUser.SELF).count())
+        self.assertEqual(1, self.user.users.by_role(roles=TestUser.ASSISTANT).count())

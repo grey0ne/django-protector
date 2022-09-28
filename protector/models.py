@@ -7,7 +7,6 @@ from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericRelation, GenericForeignKey
 from django.utils.translation import ugettext_lazy as _
-from django.utils.six import text_type, python_2_unicode_compatible
 from mptt.models import MPTTModel, TreeForeignKey
 from protector.internals import (
     DEFAULT_ROLE,
@@ -28,7 +27,7 @@ from protector.managers import (
     RestrictedManager,
     GenericGroupManager,
 )
-from protector.reserved_reasons import MEMBER_FK_UPDATE_REASON
+from protector.reserved_reasons import MEMBER_FK_UPDATE_REASON, SELF_GROUP_ROLE_UPDATED
 
 
 #  Form a from clause for all permission related to their owners
@@ -43,7 +42,7 @@ class AbstractGenericUserToGroup(models.Model):
     roles = models.IntegerField(verbose_name=_('roles'), blank=True, null=True)
     group_id = models.PositiveIntegerField(verbose_name=_('group id'))
     group_content_type = models.ForeignKey(
-        verbose_name=_('group content type'), to=ContentType, on_delete=models.CASCADE
+        verbose_name=_('group content type'), to=ContentType, on_delete=models.CASCADE, db_index=False
     )
     group = GenericForeignKey('group_content_type', 'group_id')
 
@@ -139,7 +138,7 @@ class GenericUserToGroup(AbstractGenericUserToGroup):
     class Meta:
         verbose_name = _('user to group link')
         verbose_name_plural = _('user to group links')
-        unique_together = ('group_id', 'group_content_type', 'user')
+        unique_together = ('group_content_type', 'group_id', 'user')
 
     def __unicode__(self):
         return "{app}.{model}.{group_id} - {username}".format(
@@ -186,7 +185,6 @@ class GenericUserToGroup(AbstractGenericUserToGroup):
         super(GenericUserToGroup, self).save(*args, **kwargs)
 
 
-@python_2_unicode_compatible
 class HistoryGenericUserToGroup(AbstractBaseHistory, AbstractGenericUserToGroup):
     TYPE_ADD = 1
     TYPE_REMOVE = 2
@@ -205,12 +203,13 @@ class HistoryGenericUserToGroup(AbstractBaseHistory, AbstractGenericUserToGroup)
     class Meta:
         verbose_name = _('generic user to group history')
         verbose_name_plural = _('generic user to group histories')
+        index_together = ('group_content_type', 'group_id', 'user')
         permissions = (
             (VIEW_GENERIC_GROUP_HISTORY, _('view generic group history')),
         )
 
     def __str__(self):
-        return text_type('{history_id} | initiated by {responsible}, action: {action_type} | {group_name} {group_id}').\
+        return '{history_id} | initiated by {responsible}, action: {action_type} | {group_name} {group_id}'.\
             format(
                 history_id=self.id,
                 responsible=self.responsible.username if self.responsible else '',
@@ -239,7 +238,7 @@ class OwnerToPermission(AbstractOwnerToPermission):
         verbose_name_plural = _('owner to permission links')
         index_together = (
             ['owner_content_type', 'owner_object_id'],
-            ['content_type', 'object_id', 'permission']
+            ['content_type', 'object_id', 'permission'],
         )
         unique_together = (
             'content_type', 'object_id', 'owner_content_type', 'owner_object_id', 'permission'
@@ -311,16 +310,22 @@ class OwnerToPermission(AbstractOwnerToPermission):
             # Here is a bit of denormalization
             # User is a part of group of his own
             # This is done to drastically improve perm checking performance
-            GenericUserToGroup.objects.get_or_create(
+            self_role = 1  # role == 1 in user model is assumed to mean user himself
+            generic_user_to_group, created = GenericUserToGroup.objects.get_or_create(
                 reason=kwargs.get('reason'),
                 group_id=self.owner_object_id,
                 group_content_type=self.owner_content_type,
                 user_id=self.owner_object_id,
-                roles=1,
                 defaults={
                     'responsible': kwargs.get('responsible'),
+                    'roles': self_role,
                 }
             )
+            if not generic_user_to_group.roles & self_role:
+                # If (for some reason) user is a part of group of his own without self role (1),
+                # we ensure that self role is included
+                generic_user_to_group.roles |= self_role
+                generic_user_to_group.save(reason=SELF_GROUP_ROLE_UPDATED)
         try:
             del kwargs['reason']
         except KeyError:
@@ -328,7 +333,6 @@ class OwnerToPermission(AbstractOwnerToPermission):
         super(OwnerToPermission, self).save(*args, **kwargs)
 
 
-@python_2_unicode_compatible
 class HistoryOwnerToPermission(AbstractBaseHistory, AbstractOwnerToPermission):
     TYPE_ADD = 1
     TYPE_REMOVE = 2
@@ -352,7 +356,7 @@ class HistoryOwnerToPermission(AbstractBaseHistory, AbstractOwnerToPermission):
         )
 
     def __str__(self):
-        return text_type(
+        return (
             '{history_id} | initiated by {responsible}, '
             'action: {action_type} | {group_name} {group_id} for perm {permission}'
         ).format(
@@ -646,7 +650,7 @@ class Restricted(models.Model):
             )
         else:
             parent_restriction = None
-        Restriction.objects.get_or_create(
+        Restriction.objects.update_or_create(
             object_id=self.pk,
             content_type=ContentType.objects.get_for_model(self),
             defaults={'parent': parent_restriction}
