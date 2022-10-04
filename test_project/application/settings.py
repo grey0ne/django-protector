@@ -72,6 +72,8 @@ STATIC_URL = '/static/'
 AUTH_USER_MODEL = 'test_app.TestUser'
 PROTECTOR_GENERIC_GROUP = 'test_app.TestGroup'
 
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+
 AUTHENTICATION_BACKENDS = (
     'protector.backends.GenericAuthPermissionBackend',
 )
