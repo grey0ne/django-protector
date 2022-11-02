@@ -492,7 +492,9 @@ class AbstractGenericGroup(GenericPermsMixin):
     def delete(self, *args, **kwargs):
         result = super().delete(*args, **kwargs)
         if self.Meta.delete_protector_group:
-            GenericUserToGroup.objects.filter(group_id=self.pk, group_content_type=type(self).__name__.lower())
+            GenericUserToGroup.objects.filter(
+                group_id=self.pk,
+                group_content_type__id=ContentType.objects.get_for_model(self).id)
         return result
 
     def _update_member_foreign_key(self):
