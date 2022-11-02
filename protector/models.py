@@ -494,7 +494,7 @@ class AbstractGenericGroup(GenericPermsMixin):
         if self.Meta.delete_protector_group:
             GenericUserToGroup.objects.filter(
                 group_id=self.pk,
-                group_content_type__id=ContentType.objects.get_for_model(self).id
+                group_content_type_id=ContentType.objects.get_for_model(self).id
             )
         return result
 
