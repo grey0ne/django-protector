@@ -495,7 +495,7 @@ class AbstractGenericGroup(GenericPermsMixin):
             GenericUserToGroup.objects.filter(
                 group_id=self.pk,
                 group_content_type_id=ContentType.objects.get_for_model(self).id
-            )
+            ).delete()
         return result
 
     def _update_member_foreign_key(self):
