@@ -476,10 +476,11 @@ class AbstractGenericGroup(GenericPermsMixin):
     )
 
     objects = GenericGroupManager()
+    
+    delete_protector_group = True
 
     class Meta:
         abstract = True
-        delete_protector_group = True
 
     def __init__(self, *args, **kwargs):
         super(AbstractGenericGroup, self).__init__(*args, **kwargs)
@@ -491,7 +492,7 @@ class AbstractGenericGroup(GenericPermsMixin):
 
     def delete(self, *args, **kwargs):
         result = super().delete(*args, **kwargs)
-        if self.Meta.delete_protector_group:
+        if self.delete_protector_group:
             GenericUserToGroup.objects.filter(
                 group_id=self.pk,
                 group_content_type_id=ContentType.objects.get_for_model(self).id
