@@ -375,10 +375,7 @@ class GenericPermsMixin(models.Model):
     """
         Mixin is can be used to easily retrieve all owners of permissions to this object
     """
-    permission_relations = GenericRelation(
-        OwnerToPermission, content_type_field='owner_content_type',
-        object_id_field='owner_object_id'
-    )
+    permission_relations = GenericRelation(OwnerToPermission)
 
     permissions = None
 
@@ -489,15 +486,6 @@ class AbstractGenericGroup(GenericPermsMixin):
     def save(self, *args, **kwargs):
         super(AbstractGenericGroup, self).save(*args, **kwargs)
         self._update_member_foreign_key()
-
-    def delete(self, *args, **kwargs):
-        result = super().delete(*args, **kwargs)
-        if self.delete_protector_group:
-            GenericUserToGroup.objects.filter(
-                group_id=self.pk,
-                group_content_type_id=ContentType.objects.get_for_model(self).id
-            ).delete()
-        return result
 
     def _update_member_foreign_key(self):
         for field, roles in self.MEMBER_FOREIGN_KEY_FIELDS:
