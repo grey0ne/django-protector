@@ -809,7 +809,10 @@ class TestCascadeDeletion(TestCase):
 
         self.assertTrue(GenericUserToGroup.objects.filter(pk=gutg.pk).exists())
         self.user.delete()
-        self.assertFalse(GenericUserToGroup.objects.filter(pk=gutg.pk).exists())
+        self.assertFalse(
+            GenericUserToGroup.objects.filter(pk=gutg.pk).exists(),
+            'GenericUserToGroup not cascade deleted after deleting user'
+        )
 
     def test_deletion_owner_to_permission(self):
         TestGroup = get_default_group_ctype().model_class()
@@ -824,4 +827,6 @@ class TestCascadeDeletion(TestCase):
 
         self.assertTrue(OwnerToPermission.objects.filter(pk=otp.pk).exists())
         obj.delete()
-        self.assertFalse(OwnerToPermission.objects.filter(pk=otp.pk).exists())
+        self.assertFalse(
+            OwnerToPermission.objects.filter(pk=otp.pk).exists(),
+            'OwnerToPermission not cascade deleted after deleting content_object')
