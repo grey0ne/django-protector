@@ -791,3 +791,37 @@ class TestGenericUserToGroupSelf(TestCase):
 
         self.assertEqual(1, self.user.users.by_role(roles=TestUser.SELF).count())
         self.assertEqual(1, self.user.users.by_role(roles=TestUser.ASSISTANT).count())
+
+
+class TestCascadeDeletion(TestCase):
+    def setUp(self):
+        self.user = TestUser.objects.create(username='legolas', email='legolas@test.com')
+
+    def test_deletetion_user_to_group(self):
+
+        gutg = GenericUserToGroup.objects.create(
+            user=self.user,
+            group_id=self.user.id,
+            group_content_type=get_user_ctype(),
+            roles=TestUser.ASSISTANT,
+            reason=TEST_REASON,
+        )
+
+        self.assertTrue(GenericUserToGroup.objects.filter(pk=gutg.pk).exists())
+        self.user.delete()
+        self.assertFalse(GenericUserToGroup.objects.filter(pk=gutg.pk).exists())
+
+    def test_deletion_owner_to_permission(self):
+        TestGroup = get_default_group_ctype().model_class()
+        obj = TestGroup.objects.create()
+        otp = OwnerToPermission.objects.create(
+            owner=self.user,
+            reason=TEST_REASON,
+            content_type=ContentType.objects.get_for_model(TestGroup),
+            content_object=obj,
+            permission=TestGroup.get_view_permission(),
+        )
+
+        self.assertTrue(OwnerToPermission.objects.filter(pk=otp.pk).exists())
+        obj.delete()
+        self.assertFalse(OwnerToPermission.objects.filter(pk=otp.pk).exists())
