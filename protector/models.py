@@ -375,7 +375,10 @@ class GenericPermsMixin(models.Model):
     """
         Mixin is can be used to easily retrieve all owners of permissions to this object
     """
-    permission_relations = GenericRelation(OwnerToPermission)
+    permission_relations = GenericRelation(
+        OwnerToPermission, content_type_field='owner_content_type',
+        object_id_field='owner_object_id'
+    )
 
     permissions = None
 
@@ -472,9 +475,9 @@ class AbstractGenericGroup(GenericPermsMixin):
         object_id_field='group_id'
     )
 
+    content_object_relations = GenericRelation(OwnerToPermission)
+
     objects = GenericGroupManager()
-    
-    delete_protector_group = True
 
     class Meta:
         abstract = True
