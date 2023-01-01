@@ -791,3 +791,55 @@ class TestGenericUserToGroupSelf(TestCase):
 
         self.assertEqual(1, self.user.users.by_role(roles=TestUser.SELF).count())
         self.assertEqual(1, self.user.users.by_role(roles=TestUser.ASSISTANT).count())
+
+
+class TestCascadeDeleteUserToGroup(TestCase):
+    def setUp(self):
+        self.user = TestUser.objects.create(username='legolas', email='legolas@test.com')
+
+    def test_delete(self):
+
+        gutg = GenericUserToGroup.objects.create(
+            user=self.user,
+            group_id=self.user.id,
+            group_content_type=get_user_ctype(),
+            roles=TestUser.ASSISTANT,
+            reason=TEST_REASON,
+        )
+
+        self.assertTrue(GenericUserToGroup.objects.filter(pk=gutg.pk).exists())
+        self.user.delete()
+        self.assertFalse(
+            GenericUserToGroup.objects.filter(pk=gutg.pk).exists(),
+            'GenericUserToGroup not cascade deleted after deleting user'
+        )
+
+
+class TestCascadeDeleteOwnerToPermission(TestCase):
+    def setUp(self):
+        self.user = TestUser.objects.create(username='legolas', email='legolas@test.com')
+        TestGroup = get_default_group_ctype().model_class()
+        self.content_object = TestGroup.objects.create()
+        self.owner_to_permission = OwnerToPermission.objects.create(
+            owner=self.user,
+            reason=TEST_REASON,
+            content_type=ContentType.objects.get_for_model(TestGroup),
+            content_object=self.content_object,
+            permission=TestGroup.get_view_permission(),
+        )
+
+    def test_delete_on_content_object_deletion(self):
+        self.assertTrue(OwnerToPermission.objects.filter(pk=self.owner_to_permission.pk).exists())
+        self.content_object.delete()
+        self.assertFalse(
+            OwnerToPermission.objects.filter(pk=self.owner_to_permission.pk).exists(),
+            'OwnerToPermission not cascade deleted after deleting content_object'
+        )
+
+    def test_delete_on_owner_deletion(self):
+        self.assertTrue(OwnerToPermission.objects.filter(pk=self.owner_to_permission.pk).exists())
+        self.user.delete()
+        self.assertFalse(
+            OwnerToPermission.objects.filter(pk=self.owner_to_permission.pk).exists(),
+            'OwnerToPermission not cascade deleted after deleting owner'
+        )

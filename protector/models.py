@@ -475,9 +475,9 @@ class AbstractGenericGroup(GenericPermsMixin):
         object_id_field='group_id'
     )
 
+    content_object_relations = GenericRelation(OwnerToPermission)
+
     objects = GenericGroupManager()
-    
-    delete_protector_group = True
 
     class Meta:
         abstract = True
@@ -489,15 +489,6 @@ class AbstractGenericGroup(GenericPermsMixin):
     def save(self, *args, **kwargs):
         super(AbstractGenericGroup, self).save(*args, **kwargs)
         self._update_member_foreign_key()
-
-    def delete(self, *args, **kwargs):
-        result = super().delete(*args, **kwargs)
-        if self.delete_protector_group:
-            GenericUserToGroup.objects.filter(
-                group_id=self.pk,
-                group_content_type_id=ContentType.objects.get_for_model(self).id
-            ).delete()
-        return result
 
     def _update_member_foreign_key(self):
         for field, roles in self.MEMBER_FOREIGN_KEY_FIELDS:
