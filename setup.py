@@ -19,8 +19,8 @@ setup(
     author_email='greyone@greyone.ru',
     test_suite='runtests.runtests',
     install_requires=[
-        'django-mptt>=0.8.6',
-        'Django>=2.2',
+        'django-mptt>=0.11',
+        'Django>=4.0',
         'future>=0.16.0'
     ],
     classifiers=[
