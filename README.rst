@@ -167,4 +167,9 @@ MEMBER_FOREIGN_KEY_FIELDS defines which foreign key gets which role.
 
 Notice: This is accomplished via some denormalization and works through create, save and update model and manager methods overloading
 
+For Mantainers
+------------------------------
 
+To build package and upload to PyPi run::
+
+    ./build_package.sh
