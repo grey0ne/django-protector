@@ -203,7 +203,9 @@ class HistoryGenericUserToGroup(AbstractBaseHistory, AbstractGenericUserToGroup)
     class Meta:
         verbose_name = _('generic user to group history')
         verbose_name_plural = _('generic user to group histories')
-        index_together = ('group_content_type', 'group_id', 'user')
+        indexes = [
+            models.Index(fields=['group_content_type', 'group_id', 'user'])
+        ]
         permissions = (
             (VIEW_GENERIC_GROUP_HISTORY, _('view generic group history')),
         )
@@ -236,10 +238,10 @@ class OwnerToPermission(AbstractOwnerToPermission):
     class Meta:
         verbose_name = _('owner to permission link')
         verbose_name_plural = _('owner to permission links')
-        index_together = (
-            ['owner_content_type', 'owner_object_id'],
-            ['content_type', 'object_id', 'permission'],
-        )
+        indexes = [
+            models.Index(fields=['owner_content_type', 'owner_object_id']),
+            models.Index(fields=['content_type', 'object_id', 'permission']),
+        ]
         unique_together = (
             'content_type', 'object_id', 'owner_content_type', 'owner_object_id', 'permission'
         )
